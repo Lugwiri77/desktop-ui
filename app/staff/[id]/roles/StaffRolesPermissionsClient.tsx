@@ -2,12 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useParams } from 'next/navigation';
-import { ApplicationLayout } from '../../../components/application-layout';
-import { Heading } from '../../../components/heading';
-import { Text } from '../../../components/text';
-import { Button } from '../../../components/button';
-import { Label, Description } from '../../../components/fieldset';
-import { Checkbox, CheckboxField } from '../../../components/checkbox';
+import { ApplicationLayout } from '@/app/components/application-layout';
+import { Heading } from '@/app/components/heading';
+import { Text } from '@/app/components/text';
+import { Button } from '@/app/components/button';
+import { Label, Description } from '@/app/components/fieldset';
+import { Checkbox, CheckboxField } from '@/app/components/checkbox';
 import { isAuthenticated, get, put } from '@/lib/api';
 import {
   loadUserInfo,
