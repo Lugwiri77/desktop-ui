@@ -30,6 +30,18 @@ interface DatabaseConfig {
   database_connection_status?: string;
   last_database_connection_test?: string;
   database_connection_error?: string;
+  is_using_default_strategy: boolean;
+}
+
+interface QueryMetrics {
+  strategy: string;
+  total_queries: number;
+  total_duration_ms: number;
+  avg_duration_ms: number;
+  min_duration_ms: number;
+  max_duration_ms: number;
+  error_count: number;
+  last_updated: string;
 }
 
 interface DatabaseConfigResponse {
@@ -55,6 +67,10 @@ export default function SettingsPage() {
   const [databaseUsername, setDatabaseUsername] = useState('');
   const [databasePassword, setDatabasePassword] = useState('');
   const [connectionStatus, setConnectionStatus] = useState<string>('');
+  const [isUsingDefault, setIsUsingDefault] = useState(true);
+  const [metrics, setMetrics] = useState<Record<string, QueryMetrics>>({});
+  const [migrating, setMigrating] = useState(false);
+  const [originalStrategy, setOriginalStrategy] = useState<DatabaseStrategy>('kastaem_only');
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -77,26 +93,39 @@ export default function SettingsPage() {
 
     setUserInfo(info);
     fetchDatabaseConfig();
+    fetchMetrics();
   }, [router]);
 
   const fetchDatabaseConfig = async () => {
     try {
       setLoading(true);
-      const response = await get<DatabaseConfigResponse>('/auth/settings/database-config');
+      const response = await get<DatabaseConfigResponse>('/auth/organization/database-settings');
       const config = response.data;
 
       setDatabaseStrategy(config.database_strategy);
+      setOriginalStrategy(config.database_strategy);
       setDatabaseType(config.own_database_type || 'postgresql');
       setDatabaseHost(config.own_database_host || '');
       setDatabasePort(String(config.own_database_port || 5432));
       setDatabaseName(config.own_database_name || '');
       setDatabaseUsername(config.own_database_username || '');
       setConnectionStatus(config.database_connection_status || 'not_configured');
+      setIsUsingDefault(config.is_using_default_strategy);
     } catch (err: any) {
       console.error('Error fetching database config:', err);
       setError('Failed to load database configuration. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchMetrics = async () => {
+    try {
+      const response = await get<{ status: string; data: Record<string, QueryMetrics> }>('/auth/organization/query-metrics');
+      setMetrics(response.data || {});
+    } catch (err: any) {
+      console.error('Error fetching metrics:', err);
+      // Don't show error for metrics, it's not critical
     }
   };
 
@@ -106,14 +135,13 @@ export default function SettingsPage() {
     setTesting(true);
 
     try {
-      await post('/auth/settings/test-database-connection', {
-        database_strategy: databaseStrategy,
-        own_database_type: databaseType,
-        own_database_host: databaseHost,
-        own_database_port: parseInt(databasePort),
-        own_database_name: databaseName,
-        own_database_username: databaseUsername,
-        own_database_password: databasePassword || undefined,
+      await post('/auth/organization/test-database-connection', {
+        database_type: databaseType,
+        host: databaseHost,
+        port: parseInt(databasePort),
+        database: databaseName,
+        username: databaseUsername,
+        password: databasePassword || undefined,
       });
 
       setSuccess('Database connection test successful!');
@@ -126,6 +154,36 @@ export default function SettingsPage() {
     }
   };
 
+  const handleMigrate = async () => {
+    if (originalStrategy === databaseStrategy) {
+      setError('Source and target strategies are the same. No migration needed.');
+      return;
+    }
+
+    if (!window.confirm(`Are you sure you want to migrate data from ${originalStrategy} to ${databaseStrategy}? This may take some time.`)) {
+      return;
+    }
+
+    setMigrating(true);
+    setError('');
+    setSuccess('');
+
+    try {
+      const response = await post<{ status: string; message: string; details: any }>('/auth/organization/migrate-data', {
+        source_strategy: originalStrategy,
+        target_strategy: databaseStrategy,
+      });
+
+      const details = response.details;
+      setSuccess(`Migration completed! Tables: ${details.tables_migrated.join(', ')}, Rows: ${details.total_rows_copied}, Duration: ${details.duration_seconds.toFixed(2)}s`);
+      fetchDatabaseConfig();
+    } catch (err: any) {
+      setError(err.message || 'Migration failed. Please try again.');
+    } finally {
+      setMigrating(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -133,7 +191,7 @@ export default function SettingsPage() {
     setSaving(true);
 
     try {
-      await put('/auth/settings/database-config', {
+      await put('/auth/organization/database-settings', {
         database_strategy: databaseStrategy,
         own_database_type: databaseType,
         own_database_host: databaseHost,
@@ -145,6 +203,8 @@ export default function SettingsPage() {
 
       setSuccess('Database configuration updated successfully!');
       setDatabasePassword(''); // Clear password field after saving
+      fetchDatabaseConfig();
+      fetchMetrics();
     } catch (err: any) {
       setError(err.message || 'Failed to update database configuration. Please try again.');
     } finally {
@@ -180,6 +240,7 @@ export default function SettingsPage() {
   };
 
   const showDatabaseFields = databaseStrategy !== 'kastaem_only';
+  const strategyChanged = databaseStrategy !== originalStrategy;
 
   return (
     <ApplicationLayout
@@ -193,6 +254,53 @@ export default function SettingsPage() {
           <Heading>Settings</Heading>
           <Text className="mt-2">Configure your organization settings and preferences</Text>
         </div>
+
+        {/* Default Configuration Badge */}
+        {isUsingDefault && (
+          <div className="rounded-lg bg-blue-50 p-4 border-2 border-blue-200 dark:bg-blue-950/30 dark:border-blue-800">
+            <div className="flex items-start gap-3">
+              <div className="flex-shrink-0 mt-0.5">
+                <svg className="h-6 w-6 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-1">
+                  ✓ Using Default Configuration
+                </h4>
+                <p className="text-sm text-blue-800 dark:text-blue-200">
+                  You are currently using the default Kastaem database. All your data is securely stored in our cloud infrastructure with automatic backups and high availability. You can configure your own database below if needed.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Query Performance Metrics */}
+        {Object.keys(metrics).length > 0 && (
+          <div className="rounded-lg bg-white p-6 shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+            <h3 className="text-base font-semibold text-zinc-950 dark:text-white mb-4">
+              Query Performance Metrics
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {Object.entries(metrics).map(([strategy, metric]) => (
+                <div key={strategy} className="rounded-lg bg-zinc-50 p-4 dark:bg-zinc-800">
+                  <div className="text-sm font-medium text-zinc-600 dark:text-zinc-400 mb-2">
+                    {strategy.replace(/([A-Z])/g, ' $1').trim()}
+                  </div>
+                  <div className="text-2xl font-bold text-zinc-900 dark:text-white mb-2">
+                    {metric.total_queries.toLocaleString()}
+                  </div>
+                  <div className="text-xs text-zinc-500 dark:text-zinc-400 space-y-1">
+                    <div>Avg: {metric.avg_duration_ms.toFixed(2)}ms</div>
+                    <div>Min/Max: {metric.min_duration_ms}ms / {metric.max_duration_ms}ms</div>
+                    <div>Errors: {metric.error_count}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {error && (
           <div className="rounded-lg bg-red-50 p-4 text-sm text-red-800 dark:bg-red-950 dark:text-red-200">
@@ -366,7 +474,39 @@ export default function SettingsPage() {
             </div>
           </div>
 
+          {/* Migration Warning */}
+          {strategyChanged && (
+            <div className="rounded-lg bg-amber-50 p-4 border-2 border-amber-200 dark:bg-amber-950/30 dark:border-amber-800">
+              <div className="flex items-start gap-3">
+                <div className="flex-shrink-0 mt-0.5">
+                  <svg className="h-6 w-6 text-amber-600 dark:text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h4 className="text-sm font-semibold text-amber-900 dark:text-amber-100 mb-1">
+                    Database Strategy Changed
+                  </h4>
+                  <p className="text-sm text-amber-800 dark:text-amber-200 mb-2">
+                    You have changed the database strategy from <strong>{originalStrategy}</strong> to <strong>{databaseStrategy}</strong>.
+                    You need to migrate your existing data after saving the configuration.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           <div className="flex gap-4">
+            {strategyChanged && (
+              <Button
+                type="button"
+                onClick={handleMigrate}
+                disabled={migrating}
+                className="bg-amber-600 hover:bg-amber-700"
+              >
+                {migrating ? 'Migrating Data...' : 'Migrate Data'}
+              </Button>
+            )}
             <Button type="submit" disabled={saving}>
               {saving ? 'Saving...' : 'Save Configuration'}
             </Button>
