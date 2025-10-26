@@ -8,7 +8,7 @@ import { Button } from '../components/button';
 import { Avatar } from '../components/avatar';
 import { Badge } from '../components/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../components/table';
-import { isAuthenticated, get } from '@/lib/api';
+import { isAuthenticated } from '@/lib/api';
 import {
   loadUserInfo,
   isAdministrator,
@@ -16,6 +16,8 @@ import {
   UserInfo,
 } from '@/lib/roles';
 import { PlusIcon } from '@heroicons/react/20/solid';
+import { ArrowPathIcon } from '@heroicons/react/24/outline';
+import { useStaffList } from '@/lib/hooks/use-cached-api';
 
 interface StaffMember {
   id: string;
@@ -33,19 +35,12 @@ interface StaffMember {
   staff_type: 'administrator' | 'staff';
 }
 
-interface StaffListResponse {
-  status: string;
-  message: string;
-  staff: StaffMember[];
-  total: number;
-}
-
 export default function StaffPage() {
   const router = useRouter();
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
-  const [staff, setStaff] = useState<StaffMember[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+
+  // Use cached staff list hook - automatically handles caching and background refetch
+  const { data: staffData, isLoading, isError, error: apiError, refetch, isFetching } = useStaffList();
 
   useEffect(() => {
     // Check authentication
@@ -67,21 +62,10 @@ export default function StaffPage() {
     }
 
     setUserInfo(info);
-    fetchStaff();
   }, [router]);
 
-  const fetchStaff = async () => {
-    try {
-      setLoading(true);
-      const data = await get<StaffListResponse>('/auth/staff');
-      setStaff(data.staff);
-    } catch (err) {
-      console.error('Error fetching staff:', err);
-      setError('Failed to load staff list. Please try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
+  const staff = staffData?.staff || [];
+  const error = isError ? (apiError as Error).message : '';
 
   const handleLogout = async () => {
     localStorage.clear();
@@ -119,11 +103,28 @@ export default function StaffPage() {
     >
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <Heading>Staff Management</Heading>
-          <Button onClick={() => router.push('/staff/register')}>
-            <PlusIcon className="h-5 w-5 mr-2" />
-            Register New Staff
-          </Button>
+          <div className="flex items-center gap-4">
+            <Heading>Staff Management</Heading>
+            {isFetching && (
+              <div className="flex items-center gap-2 text-sm text-zinc-500 dark:text-zinc-400">
+                <ArrowPathIcon className="h-4 w-4 animate-spin" />
+                <span>Refreshing...</span>
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <Button
+              onClick={() => refetch()}
+              outline
+              disabled={isFetching}
+            >
+              <ArrowPathIcon className={`h-5 w-5 ${isFetching ? 'animate-spin' : ''}`} />
+            </Button>
+            <Button onClick={() => router.push('/staff/register')}>
+              <PlusIcon className="h-5 w-5 mr-2" />
+              Register New Staff
+            </Button>
+          </div>
         </div>
 
         {error && (
@@ -132,7 +133,7 @@ export default function StaffPage() {
           </div>
         )}
 
-        {loading ? (
+        {isLoading ? (
           <div className="flex items-center justify-center p-12">
             <div className="text-gray-600">Loading staff...</div>
           </div>
@@ -209,14 +210,23 @@ export default function StaffPage() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {member.staff_type === 'staff' && (
+                      <div className="flex items-center gap-2">
                         <Button
-                          onClick={() => router.push(`/staff/${member.id}/roles`)}
+                          onClick={() => router.push(`/staff/${member.id}/edit`)}
+                          outline
                           className="text-xs"
                         >
-                          Manage Roles
+                          Edit
                         </Button>
-                      )}
+                        {member.staff_type === 'staff' && (
+                          <Button
+                            onClick={() => router.push(`/staff/${member.id}/roles`)}
+                            className="text-xs"
+                          >
+                            Manage Roles
+                          </Button>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}
@@ -225,7 +235,7 @@ export default function StaffPage() {
           </div>
         )}
 
-        {!loading && staff.length > 0 && (
+        {!isLoading && staff.length > 0 && (
           <div className="text-sm text-zinc-500 dark:text-zinc-400">
             Showing {staff.length} staff member{staff.length !== 1 ? 's' : ''}
           </div>

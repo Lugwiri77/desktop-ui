@@ -193,7 +193,7 @@ export default function LoginScreen() {
             <Label>Remember me</Label>
           </CheckboxField>
           <Text>
-            <TextLink href="#">
+            <TextLink href="/forgot-password">
               <Strong>Forgot password?</Strong>
             </TextLink>
           </Text>

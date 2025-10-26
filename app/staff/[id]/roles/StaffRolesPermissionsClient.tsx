@@ -151,8 +151,7 @@ export default function StaffRolesPermissionsClient() {
     setSaving(true);
 
     try {
-      await put('/auth/staff/roles-permissions', {
-        staff_id: staffId,
+      await put(`/auth/staff/${staffId}/roles-permissions`, {
         roles,
         permissions,
       });
