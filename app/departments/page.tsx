@@ -253,7 +253,7 @@ export default function DepartmentsPage() {
             <div className="text-gray-600">Loading departments...</div>
           </div>
         ) : (
-          <div className="rounded-lg bg-white shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+          <div className="rounded-lg px-2.5 bg-white shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
             <Table>
               <TableHead>
                 <TableRow>
@@ -272,8 +272,21 @@ export default function DepartmentsPage() {
                       {dept.name}
                       {dept.isDefault && <Badge color="blue" className="ml-2">Default</Badge>}
                     </TableCell>
-                    <TableCell>{dept.description || <span className="text-gray-400">-</span>}</TableCell>
-                    <TableCell><span className="text-gray-400">Not available via GraphQL</span></TableCell>
+                    <TableCell>
+                      <div className="max-w-xs truncate" title={dept.description}>
+                        {dept.description || <span className="text-gray-400">-</span>}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      {dept.manager ? (
+                        <div>
+                          <div className="font-medium">{dept.manager.firstName} {dept.manager.lastName}</div>
+                          <div className="text-xs text-gray-500">{dept.manager.workEmail}</div>
+                        </div>
+                      ) : (
+                        <span className="text-gray-400">No manager assigned</span>
+                      )}
+                    </TableCell>
                     <TableCell>{dept.staffCount}</TableCell>
                     <TableCell>
                       {dept.isActive ? <Badge color="green">Active</Badge> : <Badge color="red">Inactive</Badge>}

@@ -54,6 +54,13 @@ export interface StaffRBACRole {
   granularPermissions?: string; // JSON string
 }
 
+export interface DepartmentManager {
+  id: string;
+  firstName: string;
+  lastName: string;
+  workEmail: string;
+}
+
 export interface Department {
   id: string;
   name: string;
@@ -61,6 +68,7 @@ export interface Department {
   isDefault: boolean;
   isActive: boolean;
   staffCount: number;
+  manager?: DepartmentManager;
 }
 
 export interface GranularPermissions {
@@ -151,6 +159,12 @@ export async function getDepartments(): Promise<Department[]> {
         isDefault
         isActive
         staffCount
+        manager {
+          id
+          firstName
+          lastName
+          workEmail
+        }
       }
     }
   `;

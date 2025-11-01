@@ -144,7 +144,7 @@ export default function StaffPage() {
             </p>
           </div>
         ) : (
-          <div className="rounded-lg bg-white shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+          <div className="rounded-lg px-2.5 bg-white shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
             <Table className="[--gutter:--spacing(6)] sm:[--gutter:--spacing(8)]">
               <TableHead>
                 <TableRow>
