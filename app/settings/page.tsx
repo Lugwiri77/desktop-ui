@@ -322,6 +322,8 @@ export default function SettingsPage() {
     accountType: userInfo.accountType,
     organizationType: userInfo.organizationType,
     isAdministrator: isAdmin,
+    staffRole: userInfo.staffRole,
+    department: userInfo.department,
   };
 
   const showDatabaseFields = databaseStrategy !== 'kastaem_only';

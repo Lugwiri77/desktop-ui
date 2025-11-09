@@ -29,6 +29,8 @@ interface AuthResponse {
   user_role?: UserRole;
   organization_type?: string;
   tax_identification_number?: string;
+  staff_role?: string;
+  department?: string;
 }
 
 export default function LoginScreen() {
@@ -71,12 +73,14 @@ export default function LoginScreen() {
           return;
         }
 
-        // Validate that user is Business or Institution account
-        const isBusinessOrInstitution =
+        // Validate that user is Business, Institution, or External Security staff
+        const isValidAccount =
           userRoleStr.toLowerCase().includes('business') ||
-          userRoleStr.toLowerCase().includes('institution');
+          userRoleStr.toLowerCase().includes('institution') ||
+          userRoleStr.toLowerCase().includes('externalsecurity') ||
+          userRoleStr === 'ExternalSecurityStaff';
 
-        if (!isBusinessOrInstitution) {
+        if (!isValidAccount) {
           setError('This application is only accessible to Business and Institution accounts.');
           return;
         }
@@ -125,8 +129,45 @@ export default function LoginScreen() {
           localStorage.setItem('tax_identification_number', response.tax_identification_number);
         }
 
-        // Navigate to dashboard
-        router.push('/dashboard');
+        // Store staff role and department for staff members
+        if (response.staff_role) {
+          localStorage.setItem('staff_role', response.staff_role);
+          console.log('Stored staff_role in localStorage:', response.staff_role);
+        }
+
+        if (response.department) {
+          localStorage.setItem('department', response.department);
+          console.log('Stored department in localStorage:', response.department);
+        }
+
+        // Navigate based on user role
+        // External security staff should go to gate scanning UI
+        if (userRoleStr.toLowerCase().includes('externalsecurity') || userRoleStr === 'ExternalSecurityStaff') {
+          console.log('Redirecting external security staff to gate scanner');
+
+          // Store security staff info for the gate scanner layout
+          // Extract first and last names from username
+          const nameParts = (response.username || '').split(' ');
+          const firstName = nameParts[0] || response.username || 'Security';
+          const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : 'Staff';
+
+          const securityStaffInfo = {
+            id: '', // Will be populated from backend if needed
+            firstName,
+            lastName,
+            badgeNumber: response.email?.split('@')[0] || 'N/A',
+            securityRole: response.staff_role || 'security_guard',
+            assignedGate: undefined, // Can be populated if gate assignment is returned
+            profilePicUrl: response.profile_pic_url,
+          };
+
+          localStorage.setItem('security_staff_info', JSON.stringify(securityStaffInfo));
+
+          router.push('/security-gate');
+        } else {
+          // All other users go to dashboard
+          router.push('/dashboard');
+        }
       } else {
         setError(response.message || 'Login failed. Please try again.');
       }

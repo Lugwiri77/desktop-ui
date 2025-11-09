@@ -75,6 +75,22 @@ const defaultPermissions: Record<StaffRoleType, GranularPermissions> = {
     can_write: true,
     can_read: true,
     can_publish: true,
+    // Visitor Management - Administrator has all permissions
+    can_scan_visitor_entry: true,
+    can_scan_visitor_exit: true,
+    can_view_visitor_logs: true,
+    can_manage_security_alerts: true,
+    can_route_visitors: true,
+    can_assign_visitor_destination: true,
+    can_update_visitor_status: true,
+    can_send_visitor_notifications: true,
+    can_view_assigned_visitors: true,
+    can_mark_visitor_served: true,
+    can_transfer_visitors: true,
+    can_view_visitor_history: true,
+    can_view_visitor_analytics: true,
+    can_export_visitor_reports: true,
+    can_generate_visitor_insights: true,
   },
   HRManager: {
     can_update_org_settings: false,
@@ -112,6 +128,22 @@ const defaultPermissions: Record<StaffRoleType, GranularPermissions> = {
     can_write: false,
     can_read: true,
     can_publish: false,
+    // Visitor Management - HR Manager has routing and analytics permissions
+    can_scan_visitor_entry: false,
+    can_scan_visitor_exit: false,
+    can_view_visitor_logs: true,
+    can_manage_security_alerts: false,
+    can_route_visitors: true,
+    can_assign_visitor_destination: true,
+    can_update_visitor_status: true,
+    can_send_visitor_notifications: false,
+    can_view_assigned_visitors: true,
+    can_mark_visitor_served: false,
+    can_transfer_visitors: true,
+    can_view_visitor_history: true,
+    can_view_visitor_analytics: true,
+    can_export_visitor_reports: true,
+    can_generate_visitor_insights: true,
   },
   ITAdministrator: {
     can_update_org_settings: false,
@@ -149,6 +181,22 @@ const defaultPermissions: Record<StaffRoleType, GranularPermissions> = {
     can_write: false,
     can_read: true,
     can_publish: false,
+    // Visitor Management - IT Admin has view-only analytics for system monitoring
+    can_scan_visitor_entry: false,
+    can_scan_visitor_exit: false,
+    can_view_visitor_logs: true,
+    can_manage_security_alerts: false,
+    can_route_visitors: false,
+    can_assign_visitor_destination: false,
+    can_update_visitor_status: false,
+    can_send_visitor_notifications: false,
+    can_view_assigned_visitors: false,
+    can_mark_visitor_served: false,
+    can_transfer_visitors: false,
+    can_view_visitor_history: false,
+    can_view_visitor_analytics: true,
+    can_export_visitor_reports: false,
+    can_generate_visitor_insights: false,
   },
   DepartmentManager: {
     can_update_org_settings: false,
@@ -186,6 +234,22 @@ const defaultPermissions: Record<StaffRoleType, GranularPermissions> = {
     can_write: true,
     can_read: true,
     can_publish: false,
+    // Visitor Management - Department Manager has service permissions + analytics
+    can_scan_visitor_entry: false,
+    can_scan_visitor_exit: false,
+    can_view_visitor_logs: true,
+    can_manage_security_alerts: false,
+    can_route_visitors: false,
+    can_assign_visitor_destination: false,
+    can_update_visitor_status: true,
+    can_send_visitor_notifications: false,
+    can_view_assigned_visitors: true,
+    can_mark_visitor_served: true,
+    can_transfer_visitors: true,
+    can_view_visitor_history: true,
+    can_view_visitor_analytics: true,
+    can_export_visitor_reports: true,
+    can_generate_visitor_insights: false,
   },
   Staff: {
     can_update_org_settings: false,
@@ -223,6 +287,129 @@ const defaultPermissions: Record<StaffRoleType, GranularPermissions> = {
     can_write: false,
     can_read: true,
     can_publish: false,
+    // Visitor Management - Staff has no visitor permissions by default (can be customized)
+    can_scan_visitor_entry: false,
+    can_scan_visitor_exit: false,
+    can_view_visitor_logs: false,
+    can_manage_security_alerts: false,
+    can_route_visitors: false,
+    can_assign_visitor_destination: false,
+    can_update_visitor_status: false,
+    can_send_visitor_notifications: false,
+    can_view_assigned_visitors: false,
+    can_mark_visitor_served: false,
+    can_transfer_visitors: false,
+    can_view_visitor_history: false,
+    can_view_visitor_analytics: false,
+    can_export_visitor_reports: false,
+    can_generate_visitor_insights: false,
+  },
+};
+
+// Visitor Management Permission Presets
+// These are applied to Staff or DepartmentManager roles based on their department
+const visitorPermissionPresets = {
+  securityOfficer: {
+    can_scan_visitor_entry: true,
+    can_scan_visitor_exit: true,
+    can_view_visitor_logs: true,
+    can_manage_security_alerts: true,
+    can_route_visitors: false,
+    can_assign_visitor_destination: false,
+    can_update_visitor_status: false,
+    can_send_visitor_notifications: false,
+    can_view_assigned_visitors: false,
+    can_mark_visitor_served: false,
+    can_transfer_visitors: false,
+    can_view_visitor_history: true,
+    can_view_visitor_analytics: false,
+    can_export_visitor_reports: false,
+    can_generate_visitor_insights: false,
+  },
+  customerCareOfficer: {
+    can_scan_visitor_entry: false,
+    can_scan_visitor_exit: false,
+    can_view_visitor_logs: true,
+    can_manage_security_alerts: false,
+    can_route_visitors: true,
+    can_assign_visitor_destination: true,
+    can_update_visitor_status: true,
+    can_send_visitor_notifications: true,
+    can_view_assigned_visitors: true,
+    can_mark_visitor_served: false,
+    can_transfer_visitors: true,
+    can_view_visitor_history: true,
+    can_view_visitor_analytics: false,
+    can_export_visitor_reports: false,
+    can_generate_visitor_insights: false,
+  },
+  externalSecurity: {
+    can_scan_visitor_entry: true,
+    can_scan_visitor_exit: true,
+    can_view_visitor_logs: false,
+    can_manage_security_alerts: false,
+    can_route_visitors: false,
+    can_assign_visitor_destination: false,
+    can_update_visitor_status: false,
+    can_send_visitor_notifications: false,
+    can_view_assigned_visitors: false,
+    can_mark_visitor_served: false,
+    can_transfer_visitors: false,
+    can_view_visitor_history: false,
+    can_view_visitor_analytics: false,
+    can_export_visitor_reports: false,
+    can_generate_visitor_insights: false,
+  },
+  departmentStaff: {
+    can_scan_visitor_entry: false,
+    can_scan_visitor_exit: false,
+    can_view_visitor_logs: false,
+    can_manage_security_alerts: false,
+    can_route_visitors: false,
+    can_assign_visitor_destination: false,
+    can_update_visitor_status: true,
+    can_send_visitor_notifications: false,
+    can_view_assigned_visitors: true,
+    can_mark_visitor_served: true,
+    can_transfer_visitors: true,
+    can_view_visitor_history: false,
+    can_view_visitor_analytics: false,
+    can_export_visitor_reports: false,
+    can_generate_visitor_insights: false,
+  },
+  securityManager: {
+    can_scan_visitor_entry: true,
+    can_scan_visitor_exit: true,
+    can_view_visitor_logs: true,
+    can_manage_security_alerts: true,
+    can_route_visitors: false,
+    can_assign_visitor_destination: false,
+    can_update_visitor_status: false,
+    can_send_visitor_notifications: false,
+    can_view_assigned_visitors: false,
+    can_mark_visitor_served: false,
+    can_transfer_visitors: false,
+    can_view_visitor_history: true,
+    can_view_visitor_analytics: true,
+    can_export_visitor_reports: true,
+    can_generate_visitor_insights: false,
+  },
+  customerCareManager: {
+    can_scan_visitor_entry: false,
+    can_scan_visitor_exit: false,
+    can_view_visitor_logs: true,
+    can_manage_security_alerts: false,
+    can_route_visitors: true,
+    can_assign_visitor_destination: true,
+    can_update_visitor_status: true,
+    can_send_visitor_notifications: true,
+    can_view_assigned_visitors: true,
+    can_mark_visitor_served: false,
+    can_transfer_visitors: true,
+    can_view_visitor_history: true,
+    can_view_visitor_analytics: true,
+    can_export_visitor_reports: true,
+    can_generate_visitor_insights: false,
   },
 };
 
@@ -342,6 +529,11 @@ export default function StaffRBACRolesPage() {
     setPermissions(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const applyVisitorPreset = (presetName: keyof typeof visitorPermissionPresets) => {
+    const preset = visitorPermissionPresets[presetName];
+    setPermissions(prev => ({ ...prev, ...preset }));
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -382,6 +574,8 @@ export default function StaffRBACRolesPage() {
     accountType: userInfo.accountType,
     organizationType: userInfo.organizationType,
     isAdministrator: isAdmin,
+    staffRole: userInfo.staffRole,
+    department: userInfo.department,
   };
 
   return (
@@ -575,6 +769,238 @@ export default function StaffRBACRolesPage() {
                     />
                     <Label>Can view departments</Label>
                   </CheckboxField>
+                </div>
+              </div>
+
+              {/* Visitor Management Permissions */}
+              <div>
+                <h4 className="text-sm font-semibold text-zinc-900 dark:text-zinc-100 mb-2">
+                  🎫 Visitor Management
+                </h4>
+                <Text className="text-xs text-zinc-600 dark:text-zinc-400 mb-4">
+                  Control access to visitor tracking, security gate, customer care routing, and department service operations.
+                </Text>
+
+                {/* Quick Presets for Visitor Permissions */}
+                <div className="mb-6 p-4 bg-zinc-50 dark:bg-zinc-800/50 rounded-lg border border-zinc-200 dark:border-zinc-700">
+                  <h5 className="text-xs font-semibold text-zinc-800 dark:text-zinc-200 mb-3">
+                    Quick Presets (Apply common permission sets)
+                  </h5>
+                  <Text className="text-xs text-zinc-600 dark:text-zinc-400 mb-3">
+                    Select the appropriate department first, then apply the matching preset. These presets only affect visitor management permissions.
+                  </Text>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => applyVisitorPreset('securityOfficer')}
+                      className="px-3 py-2 text-xs text-left bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 rounded hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                    >
+                      <div className="font-medium text-zinc-900 dark:text-zinc-100">Security Officer</div>
+                      <div className="text-zinc-500 dark:text-zinc-400">Entry/exit scanning + logs + alerts</div>
+                      <div className="text-[10px] text-zinc-400 mt-1">For: Security Dept Staff</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => applyVisitorPreset('securityManager')}
+                      className="px-3 py-2 text-xs text-left bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 rounded hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                    >
+                      <div className="font-medium text-zinc-900 dark:text-zinc-100">Security Manager</div>
+                      <div className="text-zinc-500 dark:text-zinc-400">Security ops + analytics + reports</div>
+                      <div className="text-[10px] text-zinc-400 mt-1">For: Security Dept Manager</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => applyVisitorPreset('customerCareOfficer')}
+                      className="px-3 py-2 text-xs text-left bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 rounded hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                    >
+                      <div className="font-medium text-zinc-900 dark:text-zinc-100">Customer Care Officer</div>
+                      <div className="text-zinc-500 dark:text-zinc-400">Route visitors + assign destinations</div>
+                      <div className="text-[10px] text-zinc-400 mt-1">For: Customer Management Dept Staff</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => applyVisitorPreset('customerCareManager')}
+                      className="px-3 py-2 text-xs text-left bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 rounded hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                    >
+                      <div className="font-medium text-zinc-900 dark:text-zinc-100">Customer Care Manager</div>
+                      <div className="text-zinc-500 dark:text-zinc-400">Routing ops + analytics + reports</div>
+                      <div className="text-[10px] text-zinc-400 mt-1">For: Customer Management Dept Manager</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => applyVisitorPreset('departmentStaff')}
+                      className="px-3 py-2 text-xs text-left bg-white dark:bg-zinc-900 border border-zinc-300 dark:border-zinc-600 rounded hover:bg-zinc-50 dark:hover:bg-zinc-800 transition-colors"
+                    >
+                      <div className="font-medium text-zinc-900 dark:text-zinc-100">Department Staff</div>
+                      <div className="text-zinc-500 dark:text-zinc-400">View assigned + mark served + transfer</div>
+                      <div className="text-[10px] text-zinc-400 mt-1">For: Any Dept Staff serving visitors</div>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => applyVisitorPreset('externalSecurity')}
+                      className="px-3 py-2 text-xs text-left bg-red-50 dark:bg-red-950/20 border border-red-300 dark:border-red-700 rounded hover:bg-red-100 dark:hover:bg-red-950/30 transition-colors"
+                    >
+                      <div className="font-medium text-red-900 dark:text-red-200">⚠️ External Security</div>
+                      <div className="text-red-700 dark:text-red-400">Entry/exit scanning ONLY</div>
+                      <div className="text-[10px] text-red-600 dark:text-red-500 mt-1">MINIMAL access for contractors</div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Security Operations */}
+                <div className="mb-4">
+                  <h5 className="text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                    Security Operations (Security Department)
+                  </h5>
+                  <div className="space-y-2 pl-2">
+                    <CheckboxField>
+                      <Checkbox
+                        checked={permissions.can_scan_visitor_entry || false}
+                        onChange={() => handlePermissionChange('can_scan_visitor_entry')}
+                      />
+                      <Label>Can scan visitor entry</Label>
+                      <Description>Scan QR codes and verify OTP at entry gate</Description>
+                    </CheckboxField>
+                    <CheckboxField>
+                      <Checkbox
+                        checked={permissions.can_scan_visitor_exit || false}
+                        onChange={() => handlePermissionChange('can_scan_visitor_exit')}
+                      />
+                      <Label>Can scan visitor exit</Label>
+                      <Description>Process visitor checkout at exit gate</Description>
+                    </CheckboxField>
+                    <CheckboxField>
+                      <Checkbox
+                        checked={permissions.can_view_visitor_logs || false}
+                        onChange={() => handlePermissionChange('can_view_visitor_logs')}
+                      />
+                      <Label>Can view visitor logs</Label>
+                      <Description>Access complete visitor entry/exit records</Description>
+                    </CheckboxField>
+                    <CheckboxField>
+                      <Checkbox
+                        checked={permissions.can_manage_security_alerts || false}
+                        onChange={() => handlePermissionChange('can_manage_security_alerts')}
+                      />
+                      <Label>Can manage security alerts</Label>
+                      <Description>Receive and manage visitor security notifications</Description>
+                    </CheckboxField>
+                  </div>
+                </div>
+
+                {/* Customer Care Operations */}
+                <div className="mb-4">
+                  <h5 className="text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                    Customer Care Operations (Customer Management Department)
+                  </h5>
+                  <div className="space-y-2 pl-2">
+                    <CheckboxField>
+                      <Checkbox
+                        checked={permissions.can_route_visitors || false}
+                        onChange={() => handlePermissionChange('can_route_visitors')}
+                      />
+                      <Label>Can route visitors</Label>
+                      <Description>Assign visitors to departments and staff</Description>
+                    </CheckboxField>
+                    <CheckboxField>
+                      <Checkbox
+                        checked={permissions.can_assign_visitor_destination || false}
+                        onChange={() => handlePermissionChange('can_assign_visitor_destination')}
+                      />
+                      <Label>Can assign visitor destination</Label>
+                      <Description>Set office location and specific staff member</Description>
+                    </CheckboxField>
+                    <CheckboxField>
+                      <Checkbox
+                        checked={permissions.can_update_visitor_status || false}
+                        onChange={() => handlePermissionChange('can_update_visitor_status')}
+                      />
+                      <Label>Can update visitor status</Label>
+                      <Description>Change visitor workflow status</Description>
+                    </CheckboxField>
+                    <CheckboxField>
+                      <Checkbox
+                        checked={permissions.can_send_visitor_notifications || false}
+                        onChange={() => handlePermissionChange('can_send_visitor_notifications')}
+                      />
+                      <Label>Can send visitor notifications</Label>
+                      <Description>Send SMS updates to visitors</Description>
+                    </CheckboxField>
+                  </div>
+                </div>
+
+                {/* Department Operations */}
+                <div className="mb-4">
+                  <h5 className="text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                    Department Operations (Service Providers)
+                  </h5>
+                  <div className="space-y-2 pl-2">
+                    <CheckboxField>
+                      <Checkbox
+                        checked={permissions.can_view_assigned_visitors || false}
+                        onChange={() => handlePermissionChange('can_view_assigned_visitors')}
+                      />
+                      <Label>Can view assigned visitors</Label>
+                      <Description>See visitors assigned to their department/person</Description>
+                    </CheckboxField>
+                    <CheckboxField>
+                      <Checkbox
+                        checked={permissions.can_mark_visitor_served || false}
+                        onChange={() => handlePermissionChange('can_mark_visitor_served')}
+                      />
+                      <Label>Can mark visitor served</Label>
+                      <Description>Complete service and mark visitor as served</Description>
+                    </CheckboxField>
+                    <CheckboxField>
+                      <Checkbox
+                        checked={permissions.can_transfer_visitors || false}
+                        onChange={() => handlePermissionChange('can_transfer_visitors')}
+                      />
+                      <Label>Can transfer visitors</Label>
+                      <Description>Transfer visitor to another department/staff</Description>
+                    </CheckboxField>
+                    <CheckboxField>
+                      <Checkbox
+                        checked={permissions.can_view_visitor_history || false}
+                        onChange={() => handlePermissionChange('can_view_visitor_history')}
+                      />
+                      <Label>Can view visitor history</Label>
+                      <Description>Access historical visitor records and journey logs</Description>
+                    </CheckboxField>
+                  </div>
+                </div>
+
+                {/* Analytics & Reports */}
+                <div className="mb-4">
+                  <h5 className="text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                    Analytics & Reports
+                  </h5>
+                  <div className="space-y-2 pl-2">
+                    <CheckboxField>
+                      <Checkbox
+                        checked={permissions.can_view_visitor_analytics || false}
+                        onChange={() => handlePermissionChange('can_view_visitor_analytics')}
+                      />
+                      <Label>Can view visitor analytics</Label>
+                      <Description>Access visitor statistics and metrics</Description>
+                    </CheckboxField>
+                    <CheckboxField>
+                      <Checkbox
+                        checked={permissions.can_export_visitor_reports || false}
+                        onChange={() => handlePermissionChange('can_export_visitor_reports')}
+                      />
+                      <Label>Can export visitor reports</Label>
+                      <Description>Generate and download visitor reports</Description>
+                    </CheckboxField>
+                    <CheckboxField>
+                      <Checkbox
+                        checked={permissions.can_generate_visitor_insights || false}
+                        onChange={() => handlePermissionChange('can_generate_visitor_insights')}
+                      />
+                      <Label>Can generate visitor insights</Label>
+                      <Description>Create advanced analytics and trends</Description>
+                    </CheckboxField>
+                  </div>
                 </div>
               </div>
             </div>

@@ -120,6 +120,29 @@ export interface GranularPermissions {
   can_write: boolean;
   can_read: boolean;
   can_publish: boolean;
+
+  // Visitor Management - Security Department
+  can_scan_visitor_entry: boolean;
+  can_scan_visitor_exit: boolean;
+  can_view_visitor_logs: boolean;
+  can_manage_security_alerts: boolean;
+
+  // Visitor Management - Customer Care Department
+  can_route_visitors: boolean;
+  can_assign_visitor_destination: boolean;
+  can_update_visitor_status: boolean;
+  can_send_visitor_notifications: boolean;
+
+  // Visitor Management - Department Staff
+  can_view_assigned_visitors: boolean;
+  can_mark_visitor_served: boolean;
+  can_transfer_visitors: boolean;
+  can_view_visitor_history: boolean;
+
+  // Visitor Management - Analytics
+  can_view_visitor_analytics: boolean;
+  can_export_visitor_reports: boolean;
+  can_generate_visitor_insights: boolean;
 }
 
 /**

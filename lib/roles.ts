@@ -56,6 +56,8 @@ export interface UserInfo {
   profilePicUrl?: string;
   logoUrl?: string;
   taxId?: string;
+  staffRole?: string;  // e.g., "DepartmentManager", "Staff", "HRManager"
+  department?: string; // e.g., "Security", "HR", "IT"
 }
 
 /**
@@ -190,9 +192,13 @@ export function loadUserInfo(): UserInfo | null {
     const profilePicUrl = localStorage.getItem('profile_pic_url');
     const logoUrl = localStorage.getItem('logo_url');
     const taxId = localStorage.getItem('tax_identification_number');
+    let staffRole = localStorage.getItem('staff_role');
+    let department = localStorage.getItem('department');
 
     console.log('loadUserInfo - organizationName from localStorage:', organizationName);
     console.log('loadUserInfo - logoUrl from localStorage:', logoUrl);
+    console.log('loadUserInfo - staffRole:', staffRole);
+    console.log('loadUserInfo - department:', department);
 
     if (!userRoleStr || !email) {
       return null;
@@ -201,6 +207,19 @@ export function loadUserInfo(): UserInfo | null {
     const userRoleData = JSON.parse(userRoleStr);
     const userRole = parseUserRole(userRoleData);
     const accountType = getAccountType(userRole);
+
+    // IMPORTANT: Administrators should NOT have staff_role or department
+    // Only staff members (BusinessStaff, InstitutionStaff) should have these fields
+    const isAdmin = userRole === UserRoleType.BusinessAdministrator ||
+                    userRole === UserRoleType.InstitutionAdministrator;
+
+    if (isAdmin && (staffRole || department)) {
+      console.warn('Administrator should not have staff_role or department. Clearing these fields.');
+      localStorage.removeItem('staff_role');
+      localStorage.removeItem('department');
+      staffRole = null;
+      department = null;
+    }
 
     // For staff, try to load roles and permissions from backend
     // (This would typically be fetched from an API call)
@@ -219,6 +238,8 @@ export function loadUserInfo(): UserInfo | null {
       profilePicUrl: profilePicUrl || undefined,
       logoUrl: logoUrl || undefined,
       taxId: taxId || undefined,
+      staffRole: staffRole || undefined,
+      department: department || undefined,
     };
   } catch (error) {
     console.error('Failed to load user info:', error);

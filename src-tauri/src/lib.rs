@@ -37,6 +37,8 @@ struct TokensResponse {
     tax_identification_number: Option<String>,
     profile_pic_url: Option<String>,
     logo_url: Option<String>,
+    staff_role: Option<String>,
+    department: Option<String>,
 }
 
 // Simplified response for frontend
@@ -54,6 +56,8 @@ struct AuthResponse {
     user_role: Option<serde_json::Value>,
     organization_type: Option<String>,
     tax_identification_number: Option<String>,
+    staff_role: Option<String>,
+    department: Option<String>,
 }
 
 // Tauri command to authenticate user with Kastaem backend
@@ -140,6 +144,14 @@ async fn authenticate_user(email: String, password: String) -> Result<AuthRespon
                     .and_then(|v| v.as_str())
                     .map(|s| s.to_string());
 
+                let staff_role = json_value.get("staff_role")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+
+                let department = json_value.get("department")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+
                 // Check if we got valid tokens
                 if access_token.is_empty() {
                     return Err("No access token in response".to_string());
@@ -158,6 +170,8 @@ async fn authenticate_user(email: String, password: String) -> Result<AuthRespon
                     user_role,
                     organization_type,
                     tax_identification_number,
+                    staff_role,
+                    department,
                 })
             } else {
                 let status = response.status();

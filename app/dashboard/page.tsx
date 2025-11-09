@@ -45,6 +45,13 @@ export default function DashboardPage() {
       return;
     }
 
+    // Redirect department managers to their department-specific dashboard
+    if (info.staffRole === 'DepartmentManager' && info.department) {
+      const departmentRoute = info.department.toLowerCase().replace(/\s+/g, '-');
+      router.push(`/dashboard/department/${departmentRoute}`);
+      return;
+    }
+
     setUserInfo(info);
   }, [router]);
 
@@ -84,6 +91,8 @@ export default function DashboardPage() {
     accountType: userInfo.accountType,
     organizationType: userInfo.organizationType,
     isAdministrator: isAdmin,
+    staffRole: userInfo.staffRole,
+    department: userInfo.department,
   };
 
   return (

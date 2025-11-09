@@ -153,6 +153,8 @@ export default function RegisterStaffPage() {
     accountType: userInfo.accountType,
     organizationType: userInfo.organizationType,
     isAdministrator: isAdmin,
+    staffRole: userInfo.staffRole,
+    department: userInfo.department,
   };
 
   return (

@@ -39,6 +39,7 @@ import {
   ChartBarIcon,
   BriefcaseIcon,
   BuildingOfficeIcon,
+  UserGroupIcon,
 } from '@heroicons/react/20/solid'
 import { useRouter, usePathname } from 'next/navigation'
 import { Logo } from './logo'
@@ -56,6 +57,8 @@ interface ApplicationLayoutProps {
     accountType: string
     organizationType?: string
     isAdministrator: boolean
+    staffRole?: string
+    department?: string
   }
   onLogout: () => void
   roleDisplayName?: string
@@ -146,9 +149,25 @@ export function ApplicationLayout({ children, userInfo, onLogout, roleDisplayNam
 
           <SidebarBody>
             <SidebarSection>
-              <SidebarItem href="/dashboard" current={pathname === '/dashboard'}>
-                <HomeIcon />
-                <SidebarLabel>Dashboard</SidebarLabel>
+              {/* Dashboard link - points to department-specific dashboard for department managers */}
+              {userInfo.staffRole === "DepartmentManager" && userInfo.department ? (
+                <SidebarItem
+                  href={`/dashboard/department/${userInfo.department.toLowerCase().replace(/\s+/g, '-')}`}
+                  current={pathname?.startsWith('/dashboard/department')}
+                >
+                  <HomeIcon />
+                  <SidebarLabel>Dashboard</SidebarLabel>
+                </SidebarItem>
+              ) : (
+                <SidebarItem href="/dashboard" current={pathname === '/dashboard'}>
+                  <HomeIcon />
+                  <SidebarLabel>Dashboard</SidebarLabel>
+                </SidebarItem>
+              )}
+
+              <SidebarItem href="/visitors" current={pathname?.startsWith('/visitors')}>
+                <UserGroupIcon />
+                <SidebarLabel>Visitor Management</SidebarLabel>
               </SidebarItem>
 
               {userInfo.isAdministrator && (
@@ -186,6 +205,43 @@ export function ApplicationLayout({ children, userInfo, onLogout, roleDisplayNam
                 <SidebarLabel>Settings</SidebarLabel>
               </SidebarItem>
             </SidebarSection>
+
+            {/* Security Department Submenu - ONLY for Department Managers, NOT Administrators */}
+            {!userInfo.isAdministrator && userInfo.staffRole === "DepartmentManager" && userInfo.department === "Security" && (
+              <SidebarSection>
+                <SidebarHeading>Security Department</SidebarHeading>
+                <SidebarItem
+                  href="/dashboard/department/security/internal"
+                  current={pathname?.startsWith('/dashboard/department/security/internal')}
+                >
+                  <UsersIcon />
+                  <SidebarLabel>Internal Staff</SidebarLabel>
+                </SidebarItem>
+                <SidebarItem
+                  href="/dashboard/department/security/external"
+                  current={pathname?.startsWith('/dashboard/department/security/external')}
+                >
+                  <UserGroupIcon />
+                  <SidebarLabel>External Staff</SidebarLabel>
+                </SidebarItem>
+                <SidebarItem
+                  href="/dashboard/department/security/gates"
+                  current={pathname?.startsWith('/dashboard/department/security/gates')}
+                >
+                  <ShieldCheckIcon />
+                  <SidebarLabel>Gates</SidebarLabel>
+                </SidebarItem>
+                <SidebarItem
+                  href="/dashboard/department/security/incidents"
+                  current={pathname?.startsWith('/dashboard/department/security/incidents')}
+                >
+                  <svg className="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <SidebarLabel>Incidents</SidebarLabel>
+                </SidebarItem>
+              </SidebarSection>
+            )}
 
             {userInfo.isAdministrator && (
               <SidebarSection className="max-lg:hidden">

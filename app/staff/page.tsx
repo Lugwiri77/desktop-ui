@@ -92,6 +92,8 @@ export default function StaffPage() {
     accountType: userInfo.accountType,
     organizationType: userInfo.organizationType,
     isAdministrator: isAdmin,
+    staffRole: userInfo.staffRole,
+    department: userInfo.department,
   };
 
   return (
