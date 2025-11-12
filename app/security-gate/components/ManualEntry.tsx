@@ -93,6 +93,7 @@ export default function ManualEntry({ onEntrySuccess }: ManualEntryProps) {
         const lastName = nameParts.slice(1).join(' ') || '';
 
         setFoundVisitor({
+          id: profile.currentVisitorLogId,
           firstName,
           lastName,
           idNumber: profile.visitorIdNumber || '',
@@ -153,8 +154,7 @@ export default function ManualEntry({ onEntrySuccess }: ManualEntryProps) {
           : undefined;
 
         await checkInReturningVisitor({
-          idNumber: foundVisitor.idNumber,
-          phoneNumber: foundVisitor.phoneNumber,
+          visitorIdentifier: foundVisitor.idNumber || foundVisitor.phoneNumber, // Use ID number if available, otherwise phone
           purposeOfVisit: foundVisitor.purposeOfVisit,
           personToVisit: foundVisitor.personToVisit,
           vehicleInfo,

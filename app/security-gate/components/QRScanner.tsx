@@ -25,6 +25,23 @@ export default function QRScanner({ onScanSuccess }: QRScannerProps) {
     inputRef.current?.focus();
   }, []);
 
+  // Handle blur - only re-focus if not clicking on another input/button
+  const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+    // Check if the new focus target is another input or interactive element
+    const relatedTarget = e.relatedTarget as HTMLElement;
+    if (relatedTarget && (
+      relatedTarget.tagName === 'INPUT' ||
+      relatedTarget.tagName === 'BUTTON' ||
+      relatedTarget.tagName === 'TEXTAREA' ||
+      relatedTarget.tagName === 'SELECT'
+    )) {
+      // Don't steal focus from other inputs
+      return;
+    }
+    // Re-focus for barcode scanners
+    setTimeout(() => inputRef.current?.focus(), 0);
+  };
+
   // Entry scan mutation
   const entryMutation = useMutation({
     mutationFn: scanVisitorEntry,
@@ -195,7 +212,7 @@ export default function QRScanner({ onScanSuccess }: QRScannerProps) {
               type="text"
               value={qrData}
               onChange={(e) => setQrData(e.target.value)}
-              onBlur={() => inputRef.current?.focus()}
+              onBlur={handleBlur}
               className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               placeholder="QR Code data or barcode..."
               autoFocus

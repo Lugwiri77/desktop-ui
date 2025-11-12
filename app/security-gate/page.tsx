@@ -10,20 +10,20 @@ import {
   UserX,
   Users,
   Clock,
-  TrendingUp,
   X,
+  AlertTriangle,
 } from 'lucide-react';
 import QRScanner from './components/QRScanner';
 import ManualEntry from './components/ManualEntry';
-import VisitorStats from './components/VisitorStats';
 import RecentActivity from './components/RecentActivity';
 import QuickSearch from './components/QuickSearch';
-import { getSecurityGateStats, getRecentVisitorActivity } from '@/lib/security-gate';
+import ReportIncidentModal from './components/ReportIncidentModal';
+import { getSecurityGateStats } from '@/lib/security-gate';
 
 export default function SecurityGatePage() {
   const [activeTab, setActiveTab] = useState<'scan' | 'manual'>('scan');
   const [showSearch, setShowSearch] = useState(false);
-  const [showActivity, setShowActivity] = useState(false);
+  const [showIncidentModal, setShowIncidentModal] = useState(false);
 
   // Fetch gate statistics
   const { data: stats, refetch: refetchStats } = useQuery({
@@ -32,12 +32,6 @@ export default function SecurityGatePage() {
     refetchInterval: 5000, // Refetch every 5 seconds
   });
 
-  // Fetch recent activity - Disabled until backend implementation is complete
-  const { data: recentActivity = [] } = useQuery({
-    queryKey: ['recentVisitorActivity'],
-    queryFn: () => Promise.resolve([]), // Disabled for now
-    enabled: false, // Don't run this query
-  });
 
   const handleScanSuccess = () => {
     // Refetch stats after successful scan
@@ -127,65 +121,62 @@ export default function SecurityGatePage() {
           <div className="space-y-4">
             {/* Quick Search */}
             <div className="rounded-xl border border-white/10 bg-zinc-900 p-4">
-              <button
-                onClick={() => setShowSearch(!showSearch)}
-                className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-left text-sm text-zinc-400 hover:border-white/20 hover:bg-white/10 hover:text-white transition-all flex items-center gap-2"
-              >
-                <Search className="h-4 w-4" />
-                <span>Search visitor...</span>
-              </button>
-              {showSearch && (
-                <div className="mt-4">
-                  <QuickSearch onClose={() => setShowSearch(false)} />
-                </div>
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-medium text-white">Quick Search</h3>
+                {showSearch && (
+                  <button
+                    onClick={() => setShowSearch(false)}
+                    className="text-zinc-400 hover:text-white transition-colors"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              {!showSearch ? (
+                <button
+                  onClick={() => setShowSearch(true)}
+                  className="w-full rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 px-4 py-3 text-sm font-medium text-white transition-all flex items-center justify-center gap-2"
+                >
+                  <Search className="h-4 w-4" />
+                  <span>Search for Visitor</span>
+                </button>
+              ) : (
+                <QuickSearch onClose={() => setShowSearch(false)} />
               )}
             </div>
-
-            {/* Visitor Stats Widget */}
-            <VisitorStats stats={stats} />
 
             {/* Quick Actions */}
             <div className="rounded-xl border border-white/10 bg-zinc-900 p-4">
               <h3 className="text-sm font-medium text-white mb-3">Quick Actions</h3>
               <div className="space-y-2">
-                <button
-                  onClick={() => setShowActivity(!showActivity)}
-                  className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors flex items-center justify-between"
-                >
-                  <span>Recent Activity</span>
-                  <TrendingUp className="h-4 w-4" />
-                </button>
                 <button className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors flex items-center justify-between">
                   <span>View Shift Handover</span>
                   <ArrowRightLeft className="h-4 w-4" />
                 </button>
-                <button className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors flex items-center justify-between">
+                <button
+                  onClick={() => setShowIncidentModal(true)}
+                  className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-sm text-white hover:bg-white/10 transition-colors flex items-center justify-between"
+                >
                   <span>Report Incident</span>
-                  <Users className="h-4 w-4" />
+                  <AlertTriangle className="h-4 w-4" />
                 </button>
               </div>
             </div>
 
-            {/* Recent Activity Panel (collapsible) */}
-            {showActivity && (
-              <div className="rounded-xl border border-white/10 bg-zinc-900 p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm font-medium text-white">Recent Activity</h3>
-                  <button
-                    onClick={() => setShowActivity(false)}
-                    className="text-zinc-400 hover:text-white"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                </div>
-                <div className="max-h-96 overflow-y-auto">
-                  <RecentActivity activity={recentActivity} />
-                </div>
-              </div>
-            )}
+            {/* Recent Activity Panel (always visible, scrollable) */}
+            <RecentActivity />
           </div>
         </div>
       </div>
+
+      {/* Report Incident Modal */}
+      <ReportIncidentModal
+        isOpen={showIncidentModal}
+        onClose={() => setShowIncidentModal(false)}
+        onSuccess={() => {
+          refetchStats();
+        }}
+      />
     </div>
   );
 }

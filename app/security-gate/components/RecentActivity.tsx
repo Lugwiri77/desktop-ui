@@ -1,242 +1,182 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { ArrowDownToLine, ArrowUpFromLine, Clock, MapPin, User, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
-import type { VisitorActivity } from '@/lib/security-gate';
+import { useQuery } from '@tanstack/react-query';
+import { Clock, ArrowDownToLine, ArrowUpFromLine, User } from 'lucide-react';
+import { graphql } from '@/lib/graphql';
 
-interface RecentActivityProps {
-  activity: VisitorActivity[];
+// Types
+interface VisitorActivity {
+  id: string;
+  visitorName: string;
+  visitorPhone: string;
+  purpose: string;
+  gateLocation: string;
+  entryTime: string;
+  exitTime?: string;
+  hostName?: string;
 }
 
-type FilterType = 'all' | 'entry' | 'exit';
+interface RecentActivityProps {
+  gateLocation?: string;
+  limit?: number;
+}
 
-const ITEMS_PER_PAGE = 20;
-
-export default function RecentActivity({ activity = [] }: RecentActivityProps) {
-  const [filter, setFilter] = useState<FilterType>('all');
-  const [currentPage, setCurrentPage] = useState(1);
-
-  // Filter activity based on selected filter
-  const filteredActivity = useMemo(() => {
-    if (filter === 'all') return activity;
-    return activity.filter(item => item.type === filter);
-  }, [activity, filter]);
-
-  // Paginate filtered activity
-  const totalPages = Math.ceil(filteredActivity.length / ITEMS_PER_PAGE);
-  const paginatedActivity = useMemo(() => {
-    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
-    const endIndex = startIndex + ITEMS_PER_PAGE;
-    return filteredActivity.slice(startIndex, endIndex);
-  }, [filteredActivity, currentPage]);
-
-  // Reset to page 1 when filter changes
-  const handleFilterChange = (newFilter: FilterType) => {
-    setFilter(newFilter);
-    setCurrentPage(1);
-  };
-
-  // Mask visitor name for privacy (show first name + masked last name)
-  const maskName = (fullName: string): string => {
-    const parts = fullName.split(' ');
-    if (parts.length === 1) {
-      return fullName;
+// API function
+async function fetchRecentActivity(gateLocation?: string, limit?: number) {
+  const query = `
+    query RecentVisitorActivity($gateLocation: GateLocation, $limit: Int) {
+      recentVisitorActivity(gateLocation: $gateLocation, limit: $limit) {
+        id
+        visitorName
+        visitorPhone
+        purpose
+        gateLocation
+        entryTime
+        exitTime
+        hostName
+      }
     }
-    const firstName = parts[0];
-    const lastName = parts[parts.length - 1];
-    const maskedLastName = lastName.charAt(0) + '*'.repeat(lastName.length - 1);
-    return `${firstName} ${maskedLastName}`;
+  `;
+
+  const data = await graphql<{ recentVisitorActivity: VisitorActivity[] }>(
+    query,
+    { gateLocation, limit }
+  );
+  return data.recentVisitorActivity;
+}
+
+export default function RecentActivity({ gateLocation, limit = 20 }: RecentActivityProps) {
+  const { data: activities, isLoading, error, refetch } = useQuery({
+    queryKey: ['recentActivity', gateLocation, limit],
+    queryFn: () => fetchRecentActivity(gateLocation, limit),
+    refetchInterval: 30000, // Refresh every 30 seconds
+  });
+
+  const formatTime = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   };
 
-  // Mask phone number (show last 4 digits)
-  const maskPhone = (phone: string): string => {
-    if (!phone || phone.length < 4) return '****';
-    return `****${phone.slice(-4)}`;
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    const today = new Date();
+    const isToday = date.toDateString() === today.toDateString();
+    if (isToday) return 'Today';
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
-  // Format timestamp to relative time
-  const formatTime = (timestamp: string): string => {
-    const date = new Date(timestamp);
-    const now = new Date();
-    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-
-    if (diffInSeconds < 60) return 'Just now';
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
-    return date.toLocaleDateString();
+  const maskPhone = (phone: string) => {
+    if (phone.length <= 4) return phone;
+    return '****' + phone.slice(-4);
   };
 
-  if (activity.length === 0) {
+  if (isLoading) {
     return (
-      <div className="py-12 text-center">
-        <div className="mx-auto w-16 h-16 rounded-full bg-white/5 flex items-center justify-center mb-4">
-          <Clock className="h-8 w-8 text-zinc-500" />
+      <div className="rounded-xl border border-white/10 bg-zinc-900 p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <Clock className="h-5 w-5 text-blue-400" />
+          <h3 className="text-lg font-semibold text-white">Recent Activity</h3>
         </div>
-        <p className="text-zinc-400 text-sm">No activity yet</p>
-        <p className="text-zinc-500 text-xs mt-1">
-          Recent visitor entries and exits will appear here
-        </p>
+        <div className="space-y-3">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="animate-pulse rounded-lg border border-white/5 bg-white/5 p-4">
+              <div className="h-4 w-3/4 rounded bg-white/10 mb-2" />
+              <div className="h-3 w-1/2 rounded bg-white/10" />
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-xl border border-white/10 bg-zinc-900 p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <Clock className="h-5 w-5 text-blue-400" />
+          <h3 className="text-lg font-semibold text-white">Recent Activity</h3>
+        </div>
+        <div className="rounded-lg border border-red-500/50 bg-red-500/10 p-4">
+          <p className="text-sm text-red-400">
+            {error instanceof Error ? error.message : 'Failed to load activity'}
+          </p>
+          <button onClick={() => refetch()} className="mt-2 text-sm text-red-300 underline hover:text-red-200">
+            Try again
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      {/* Filter Buttons */}
-      <div className="flex items-center gap-2">
-        <Filter className="h-4 w-4 text-zinc-400" />
-        <div className="flex gap-2 flex-1">
-          <button
-            onClick={() => handleFilterChange('all')}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              filter === 'all'
-                ? 'bg-blue-500/20 text-blue-400 border border-blue-500/50'
-                : 'bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white border border-white/10'
-            }`}
-          >
-            All ({activity.length})
-          </button>
-          <button
-            onClick={() => handleFilterChange('entry')}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              filter === 'entry'
-                ? 'bg-green-500/20 text-green-400 border border-green-500/50'
-                : 'bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white border border-white/10'
-            }`}
-          >
-            Entries ({activity.filter(a => a.type === 'entry').length})
-          </button>
-          <button
-            onClick={() => handleFilterChange('exit')}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
-              filter === 'exit'
-                ? 'bg-blue-500/20 text-blue-400 border border-blue-500/50'
-                : 'bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white border border-white/10'
-            }`}
-          >
-            Exits ({activity.filter(a => a.type === 'exit').length})
-          </button>
+    <div className="rounded-xl border border-white/10 bg-zinc-900">
+      <div className="flex items-center justify-between border-b border-white/10 p-4">
+        <div className="flex items-center gap-3">
+          <Clock className="h-5 w-5 text-blue-400" />
+          <h3 className="text-lg font-semibold text-white">Recent Activity</h3>
         </div>
+        <button onClick={() => refetch()} className="text-sm text-zinc-400 hover:text-white transition-colors">
+          Refresh
+        </button>
       </div>
-
-      {/* Activity List */}
-      <div className="space-y-2 max-h-[600px] overflow-y-auto">
-        {paginatedActivity.map((item) => (
-          <div
-            key={item.id}
-            className="rounded-lg border border-white/10 bg-white/5 p-4 hover:bg-white/10 transition-colors"
-          >
-            <div className="flex items-start gap-3">
-              {/* Type Icon */}
-              <div
-                className={`rounded-lg p-2 flex-shrink-0 ${
-                  item.type === 'entry'
-                    ? 'bg-green-500/10'
-                    : 'bg-blue-500/10'
-                }`}
-              >
-                {item.type === 'entry' ? (
-                  <ArrowDownToLine className="h-5 w-5 text-green-400" />
-                ) : (
-                  <ArrowUpFromLine className="h-5 w-5 text-blue-400" />
-                )}
-              </div>
-
-              {/* Activity Details */}
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-2 mb-2">
-                  <div className="flex items-center gap-2">
-                    <span
-                      className={`text-sm font-semibold ${
-                        item.type === 'entry' ? 'text-green-400' : 'text-blue-400'
-                      }`}
-                    >
-                      {item.type === 'entry' ? 'Entry' : 'Exit'}
-                    </span>
-                    <span className="text-xs text-zinc-500">•</span>
-                    <span className="text-xs text-zinc-400">
-                      {formatTime(item.timestamp)}
-                    </span>
+      <div className="max-h-[600px] overflow-y-auto">
+        {!activities || activities.length === 0 ? (
+          <div className="p-8 text-center">
+            <Clock className="mx-auto h-12 w-12 text-zinc-600 mb-3" />
+            <p className="text-zinc-400">No recent activity</p>
+            <p className="text-sm text-zinc-500 mt-1">Visitor entries and exits will appear here</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-white/5">
+            {activities.map((activity) => {
+              const isCheckOut = !!activity.exitTime;
+              return (
+                <div key={activity.id} className="p-4 transition-colors hover:bg-white/5">
+                  <div className="flex items-start gap-3">
+                    <div className={`rounded-lg p-2 ${isCheckOut ? 'bg-blue-500/10' : 'bg-green-500/10'}`}>
+                      {isCheckOut ? (
+                        <ArrowUpFromLine className="h-4 w-4 text-blue-400" />
+                      ) : (
+                        <ArrowDownToLine className="h-4 w-4 text-green-400" />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-white truncate">{activity.visitorName}</p>
+                          <p className="text-sm text-zinc-400">{maskPhone(activity.visitorPhone)}</p>
+                        </div>
+                        <div className="text-right flex-shrink-0">
+                          <p className="text-sm font-medium text-white">
+                            {formatTime(isCheckOut ? activity.exitTime! : activity.entryTime)}
+                          </p>
+                          <p className="text-xs text-zinc-500">
+                            {formatDate(isCheckOut ? activity.exitTime! : activity.entryTime)}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
+                        <span className={`rounded-full px-2 py-1 ${isCheckOut ? 'bg-blue-500/10 text-blue-400' : 'bg-green-500/10 text-green-400'}`}>
+                          {isCheckOut ? 'Check-out' : 'Check-in'}
+                        </span>
+                        <span className="rounded-full bg-white/5 px-2 py-1 text-zinc-400">
+                          {activity.gateLocation.replace('_', ' ')}
+                        </span>
+                        {activity.purpose && <span className="truncate text-zinc-500">{activity.purpose}</span>}
+                      </div>
+                      {activity.hostName && (
+                        <div className="mt-2 flex items-center gap-1 text-xs text-zinc-500">
+                          <User className="h-3 w-3" />
+                          <span>Host: {activity.hostName}</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
-
-                <div className="space-y-1.5">
-                  {/* Visitor Info */}
-                  <div className="flex items-center gap-2 text-sm">
-                    <User className="h-3.5 w-3.5 text-zinc-500 flex-shrink-0" />
-                    <span className="text-white font-medium">
-                      {maskName(item.visitorName)}
-                    </span>
-                    <span className="text-zinc-500">•</span>
-                    <span className="text-zinc-400">{maskPhone(item.visitorPhone)}</span>
-                  </div>
-
-                  {/* Gate Location */}
-                  <div className="flex items-center gap-2 text-xs text-zinc-400">
-                    <MapPin className="h-3 w-3 flex-shrink-0" />
-                    <span>{item.gate}</span>
-                  </div>
-
-                  {/* Scanned By */}
-                  <div className="flex items-center gap-2 text-xs text-zinc-500">
-                    <span>Scanned by:</span>
-                    <span className="text-zinc-400 font-medium">{item.scannedBy}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Timestamp Badge */}
-              <div className="flex-shrink-0">
-                <div className="px-2 py-1 rounded bg-white/5 border border-white/10">
-                  <p className="text-xs text-zinc-400 font-mono">
-                    {new Date(item.timestamp).toLocaleTimeString('en-US', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </p>
-                </div>
-              </div>
-            </div>
+              );
+            })}
           </div>
-        ))}
-      </div>
-
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="flex items-center justify-between pt-4 border-t border-white/10">
-          <div className="text-xs text-zinc-400">
-            Showing {(currentPage - 1) * ITEMS_PER_PAGE + 1} to{' '}
-            {Math.min(currentPage * ITEMS_PER_PAGE, filteredActivity.length)} of{' '}
-            {filteredActivity.length} activities
-          </div>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
-              disabled={currentPage === 1}
-              className="p-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              aria-label="Previous page"
-            >
-              <ChevronLeft className="h-4 w-4 text-zinc-400" />
-            </button>
-            <div className="text-xs text-zinc-400">
-              Page {currentPage} of {totalPages}
-            </div>
-            <button
-              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
-              disabled={currentPage === totalPages}
-              className="p-2 rounded-lg bg-white/5 border border-white/10 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              aria-label="Next page"
-            >
-              <ChevronRight className="h-4 w-4 text-zinc-400" />
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Real-time indicator */}
-      <div className="flex items-center justify-center gap-2 text-xs text-zinc-500 pt-2">
-        <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
-        <span>Live updates enabled</span>
+        )}
       </div>
     </div>
   );

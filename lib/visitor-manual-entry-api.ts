@@ -25,6 +25,7 @@ export interface VisitorProfile {
   lastVisitDate: string;
   totalVisits: number;
   lastPurpose?: string;
+  currentVisitorLogId?: string;
 }
 
 export interface VisitorLog {
@@ -74,8 +75,7 @@ export interface RegisterWalkInVisitorInput {
 }
 
 export interface CheckInReturningVisitorInput {
-  idNumber: string;
-  phoneNumber: string;
+  visitorIdentifier: string; // ID number or phone number from lookup
   purposeOfVisit?: string;
   personToVisit?: string;
   vehicleInfo?: VehicleInfo;
@@ -110,6 +110,7 @@ export async function lookupVisitorByIdOrPhone(searchQuery: string): Promise<Vis
         lastVisitDate
         totalVisits
         lastPurpose
+        currentVisitorLogId
       }
     }
   `;
