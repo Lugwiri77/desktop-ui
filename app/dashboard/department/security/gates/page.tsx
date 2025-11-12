@@ -18,9 +18,11 @@ import {
 } from '@/lib/roles';
 import {
   getShiftAssignments,
-  getDepartmentExternalStaff
+  getDepartmentExternalStaff,
+  getOrganizationGates
 } from '@/lib/security-department-api';
 import { formatGateLocation, type GateLocation } from '@/lib/security-queries-api';
+import CreateGateModal from './components/CreateGateModal';
 
 interface GateInfo {
   id: string;
@@ -44,6 +46,7 @@ export default function GateManagementPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAssignModal, setShowAssignModal] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedGate, setSelectedGate] = useState<GateInfo | null>(null);
   const [availableStaff, setAvailableStaff] = useState<any[]>([]);
   const [selectedStaffId, setSelectedStaffId] = useState('');
@@ -91,18 +94,12 @@ export default function GateManagementPage() {
       // Fetch all external staff to get their details
       const staff = await getDepartmentExternalStaff();
 
-      // Define all gates
-      const allGates: GateLocation[] = [
-        'MAIN_GATE',
-        'SIDE_GATE',
-        'STAFF_ENTRANCE',
-        'VIP_ENTRANCE',
-        'PARKING_ENTRANCE',
-        'BACK_ENTRANCE',
-      ];
+      // Fetch actual gates from the database instead of hardcoding
+      const orgGates = await getOrganizationGates();
 
-      // Build gate info from shifts
-      const gateData: GateInfo[] = allGates.map((gateLocation) => {
+      // Build gate info from real gates
+      const gateData: GateInfo[] = orgGates.map((gate) => {
+        const gateLocation = gate.gateType;
         // Find shifts for this gate
         const gateShifts = shifts.filter((shift) => shift.gateLocation === gateLocation);
         const activeShift = gateShifts.find((shift) => shift.status === 'ACTIVE');
@@ -139,10 +136,10 @@ export default function GateManagementPage() {
           : undefined;
 
         return {
-          id: gateLocation,
-          name: formatGateLocation(gateLocation),
+          id: gate.id,
+          name: gate.gateName,
           gateLocation,
-          description: getGateDescription(gateLocation),
+          description: gate.description || getGateDescription(gateLocation),
           isCovered: !!activeShift,
           currentStaff,
           staffId,
@@ -195,7 +192,7 @@ export default function GateManagementPage() {
     // Fetch available staff
     try {
       const staff = await getDepartmentExternalStaff();
-      setAvailableStaff(staff.filter(s => s.isActive));
+      setAvailableStaff(staff); // Show all staff (including inactive)
     } catch (err: any) {
       console.error('Failed to fetch staff:', err);
       setError('Failed to load available staff');
@@ -324,14 +321,19 @@ export default function GateManagementPage() {
         </Button>
 
         {/* Header */}
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <MapPin className="h-8 w-8 text-purple-600" />
-            <Heading>Gate Management</Heading>
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <MapPin className="h-8 w-8 text-purple-600" />
+              <Heading>Gate Management</Heading>
+            </div>
+            <Text className="mt-2">
+              Monitor and manage security staff assignments across all gates
+            </Text>
           </div>
-          <Text className="mt-2">
-            Monitor and manage security staff assignments across all gates
-          </Text>
+          <Button onClick={() => setShowCreateModal(true)}>
+            Create New Gate
+          </Button>
         </div>
 
         <Divider />
@@ -534,7 +536,7 @@ export default function GateManagementPage() {
                 <option value="">-- Select Staff Member --</option>
                 {availableStaff.map((staff) => (
                   <option key={staff.id} value={staff.id}>
-                    {staff.firstName} {staff.lastName} - {staff.badgeNumber} ({staff.securityRole})
+                    {staff.firstName} {staff.lastName} - {staff.badgeNumber} ({staff.securityRole}){!staff.isActive && ' - INACTIVE'}
                   </option>
                 ))}
               </select>
@@ -626,6 +628,16 @@ export default function GateManagementPage() {
         </div>
       </div>
     )}
+
+    {/* Create Gate Modal */}
+    <CreateGateModal
+      isOpen={showCreateModal}
+      onClose={() => setShowCreateModal(false)}
+      onSuccess={() => {
+        fetchGateData();
+        setShowCreateModal(false);
+      }}
+    />
     </div>
     </ApplicationLayout>
   );

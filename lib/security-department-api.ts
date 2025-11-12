@@ -10,6 +10,31 @@ import { SecurityRole, GateLocation, ExternalSecurityStaff, InternalSecurityStaf
 // Types
 // ============================================================================
 
+export interface SecurityGate {
+  id: string;
+  locationId: string;
+  gateCode: string;
+  gateName: string;
+  gateType: GateLocation;
+  description?: string;
+  isActive: boolean;
+  isMonitored: boolean;
+  createdAt: string;
+}
+
+export interface OrganizationLocation {
+  id: string;
+  locationCode: string;
+  locationName: string;
+  locationType: string;
+  addressLine1?: string;
+  city?: string;
+  country?: string;
+  phoneNumber?: string;
+  isActive: boolean;
+  createdAt: string;
+}
+
 export interface SecurityDepartmentOverview {
   internalStaffCount: number;
   externalStaffCount: number;
@@ -196,9 +221,14 @@ export async function getDepartmentExternalStaff(filters?: {
         firstName
         lastName
         workEmail
+        phoneNumber
+        idNumber
+        badgeNumber
         securityRole
         assignedGate
         isActive
+        organizationId
+        organizationType
       }
     }
   `;
@@ -666,4 +696,121 @@ export function getVisitorStatusColor(status: string): string {
     served: 'blue',
   };
   return colors[status] || 'zinc';
+}
+
+// ============================================================================
+// Gate Management Functions
+// ============================================================================
+
+/**
+ * Fetch all gates for the organization
+ */
+export async function getOrganizationGates(): Promise<SecurityGate[]> {
+  const query = `
+    query GetOrganizationGates {
+      organizationGates {
+        id
+        locationId
+        gateCode
+        gateName
+        gateType
+        description
+        isActive
+        isMonitored
+        createdAt
+      }
+    }
+  `;
+
+  const data = await graphql<{ organizationGates: SecurityGate[] }>(query);
+  return data.organizationGates;
+}
+
+/**
+ * Fetch all locations for the organization
+ */
+export async function getOrganizationLocations(): Promise<OrganizationLocation[]> {
+  const query = `
+    query GetOrganizationLocations {
+      organizationLocations {
+        id
+        locationCode
+        locationName
+        locationType
+        addressLine1
+        city
+        country
+        phoneNumber
+        isActive
+        createdAt
+      }
+    }
+  `;
+
+  const data = await graphql<{ organizationLocations: OrganizationLocation[] }>(query);
+  return data.organizationLocations;
+}
+
+/**
+ * Create a new location
+ */
+export async function createLocation(input: {
+  locationCode: string;
+  locationName: string;
+  locationType: string;
+  addressLine1?: string;
+  city?: string;
+  country?: string;
+  phoneNumber?: string;
+}): Promise<OrganizationLocation> {
+  const mutation = `
+    mutation CreateLocation($input: CreateLocationInput!) {
+      createLocation(input: $input) {
+        id
+        locationCode
+        locationName
+        locationType
+        addressLine1
+        city
+        country
+        phoneNumber
+        isActive
+        createdAt
+      }
+    }
+  `;
+
+  const data = await graphql<{ createLocation: OrganizationLocation }>(mutation, { input });
+  return data.createLocation;
+}
+
+/**
+ * Create a new gate
+ */
+export async function createGate(input: {
+  locationId: string;
+  gateCode: string;
+  gateName: string;
+  gateType: GateLocation;
+  description?: string;
+  isMonitored?: boolean;
+}): Promise<SecurityGate> {
+  const mutation = `
+    mutation CreateGate($input: CreateGateInput!) {
+      createGate(input: $input) {
+        id
+        locationId
+        gateCode
+        gateName
+        gateType
+        description
+        isActive
+        isMonitored
+        createdAt
+      }
+    }
+  `;
+
+  const data = await graphql<{ createGate: SecurityGate }>(mutation, { input });
+  return data.createGate;
 }

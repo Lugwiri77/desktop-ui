@@ -26,11 +26,19 @@ export default function SecurityGatePage() {
   const [showIncidentModal, setShowIncidentModal] = useState(false);
 
   // Fetch gate statistics
-  const { data: stats, refetch: refetchStats } = useQuery({
+  const { data: statsArray, refetch: refetchStats } = useQuery({
     queryKey: ['securityGateStats'],
     queryFn: getSecurityGateStats,
     refetchInterval: 5000, // Refetch every 5 seconds
   });
+
+  // Aggregate stats from all gates or use first gate
+  const stats = statsArray && statsArray.length > 0 ? {
+    currentlyInside: statsArray.reduce((sum, gate) => sum + gate.currentVisitorsInside, 0),
+    checkedInToday: statsArray.reduce((sum, gate) => sum + gate.totalEntriesToday, 0),
+    checkedOutToday: statsArray.reduce((sum, gate) => sum + gate.totalExitsToday, 0),
+    avgDuration: undefined, // TODO: Calculate from backend
+  } : undefined;
 
 
   const handleScanSuccess = () => {
