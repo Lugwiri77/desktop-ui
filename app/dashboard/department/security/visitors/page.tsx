@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, Eye, Filter, UserCheck } from 'lucide-react';
+import { Search, Eye, Filter, UserCheck, RefreshCw } from 'lucide-react';
 import { useDepartmentVisitors } from '@/hooks/use-security-department';
 import { Badge } from '@/app/components/badge';
 import { format } from 'date-fns';
@@ -11,7 +11,7 @@ export default function DepartmentVisitorsPage() {
   const [filterStatus, setFilterStatus] = useState<'checked_in' | 'checked_out' | 'pending' | 'served' | ''>('');
   const [startDate, setStartDate] = useState(format(new Date(), 'yyyy-MM-dd'));
 
-  const { data: visitors = [], isLoading } = useDepartmentVisitors({
+  const { data: visitors = [], isLoading, refetch, isFetching } = useDepartmentVisitors({
     searchQuery: searchQuery || undefined,
     status: filterStatus || undefined,
     startDate,
@@ -36,14 +36,30 @@ export default function DepartmentVisitorsPage() {
     <div className="min-h-screen bg-zinc-950 p-6">
       <div className="mx-auto max-w-7xl space-y-6">
         {/* Header */}
-        <div>
-          <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-            <Eye className="h-8 w-8 text-purple-400" />
-            Department Visitors
-          </h1>
-          <p className="mt-1 text-sm text-zinc-400">
-            Manage visitors routed to the Security department
-          </p>
+        <div className="flex items-start justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-white flex items-center gap-3">
+              <Eye className="h-8 w-8 text-purple-400" />
+              Department Visitors
+              {isFetching && (
+                <span className="text-sm font-normal text-blue-400 flex items-center gap-2">
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  Updating...
+                </span>
+              )}
+            </h1>
+            <p className="mt-1 text-sm text-zinc-400">
+              Manage visitors routed to the Security department • Auto-refreshes every 30 seconds
+            </p>
+          </div>
+          <button
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="flex items-center gap-2 rounded-lg bg-white/5 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-white/10 disabled:opacity-50"
+          >
+            <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+            Refresh Now
+          </button>
         </div>
 
         {/* Filters */}

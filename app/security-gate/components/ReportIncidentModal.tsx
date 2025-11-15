@@ -40,7 +40,14 @@ async function reportIncident(input: ReportIncidentInput) {
   `;
 
   const { graphql } = await import('@/lib/graphql');
-  const data = await graphql<{ reportIncident: any }>(mutation, { input });
+
+  // Convert severity to uppercase for GraphQL enum
+  const apiInput = {
+    ...input,
+    severity: input.severity.toUpperCase(),
+  };
+
+  const data = await graphql<{ reportIncident: any }>(mutation, { input: apiInput });
   return data.reportIncident;
 }
 

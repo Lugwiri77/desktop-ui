@@ -19,7 +19,10 @@ import {
 import {
   getShiftAssignments,
   getDepartmentExternalStaff,
-  getOrganizationGates
+  getOrganizationGates,
+  updateGate,
+  deleteGate,
+  type GateLocation as GateLocationType,
 } from '@/lib/security-department-api';
 import { formatGateLocation, type GateLocation } from '@/lib/security-queries-api';
 import CreateGateModal from './components/CreateGateModal';
@@ -56,6 +59,16 @@ export default function GateManagementPage() {
   const [requiresHandover, setRequiresHandover] = useState(false);
   const [shiftNotes, setShiftNotes] = useState('');
   const [assigning, setAssigning] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [gateToEdit, setGateToEdit] = useState<GateInfo | null>(null);
+  const [gateToDelete, setGateToDelete] = useState<GateInfo | null>(null);
+  const [editForm, setEditForm] = useState({
+    gateName: '',
+    gateType: '',
+    description: '',
+    isMonitored: false,
+  });
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -274,6 +287,76 @@ export default function GateManagementPage() {
     }
   };
 
+  const openEditModal = (gate: GateInfo) => {
+    setGateToEdit(gate);
+    setEditForm({
+      gateName: gate.name,
+      gateType: gate.gateLocation,
+      description: gate.description,
+      isMonitored: false, // We don't have this info in GateInfo currently
+    });
+    setShowEditModal(true);
+  };
+
+  const closeEditModal = () => {
+    setShowEditModal(false);
+    setGateToEdit(null);
+    setEditForm({
+      gateName: '',
+      gateType: '',
+      description: '',
+      isMonitored: false,
+    });
+  };
+
+  const handleUpdateGate = async () => {
+    if (!gateToEdit || !editForm.gateName.trim()) {
+      setError('Gate name is required');
+      return;
+    }
+
+    try {
+      setError(null);
+      await updateGate({
+        gateId: gateToEdit.id,
+        gateName: editForm.gateName,
+        gateType: editForm.gateType.toUpperCase() as GateLocationType,
+        description: editForm.description || undefined,
+        isMonitored: editForm.isMonitored,
+      });
+
+      await fetchGateData();
+      closeEditModal();
+    } catch (err: any) {
+      console.error('Failed to update gate:', err);
+      setError(err.message || 'Failed to update gate');
+    }
+  };
+
+  const openDeleteModal = (gate: GateInfo) => {
+    setGateToDelete(gate);
+    setShowDeleteModal(true);
+  };
+
+  const closeDeleteModal = () => {
+    setShowDeleteModal(false);
+    setGateToDelete(null);
+  };
+
+  const handleDeleteGate = async () => {
+    if (!gateToDelete) return;
+
+    try {
+      setError(null);
+      await deleteGate(gateToDelete.id);
+      await fetchGateData();
+      closeDeleteModal();
+    } catch (err: any) {
+      console.error('Failed to delete gate:', err);
+      setError(err.message || 'Failed to delete gate');
+    }
+  };
+
   if (!userInfo) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -481,21 +564,40 @@ export default function GateManagementPage() {
               </div>
 
               {/* Quick Actions */}
-              <div className="flex gap-2">
-                <Button
-                  color="blue"
-                  className="flex-1"
-                  onClick={() => openAssignModal(gate)}
-                >
-                  Assign Staff
-                </Button>
-                <Button
-                  outline
-                  className="flex-1"
-                  onClick={() => router.push('/dashboard/department/security/shifts')}
-                >
-                  Schedule
-                </Button>
+              <div className="space-y-2">
+                <div className="flex gap-2">
+                  <Button
+                    color="blue"
+                    className="flex-1"
+                    onClick={() => openAssignModal(gate)}
+                  >
+                    Assign Staff
+                  </Button>
+                  <Button
+                    outline
+                    className="flex-1"
+                    onClick={() => router.push('/dashboard/department/security/shifts')}
+                  >
+                    Schedule
+                  </Button>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    outline
+                    className="flex-1"
+                    onClick={() => openEditModal(gate)}
+                  >
+                    Edit Gate
+                  </Button>
+                  <Button
+                    outline
+                    color="red"
+                    className="flex-1"
+                    onClick={() => openDeleteModal(gate)}
+                  >
+                    Delete
+                  </Button>
+                </div>
               </div>
             </div>
           )) : (
@@ -638,6 +740,124 @@ export default function GateManagementPage() {
         setShowCreateModal(false);
       }}
     />
+
+    {/* Edit Gate Modal */}
+    {showEditModal && gateToEdit && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full p-6">
+          <h3 className="text-xl font-semibold text-zinc-900 mb-2">
+            Edit Gate: {gateToEdit.name}
+          </h3>
+          <p className="text-sm text-zinc-600 mb-6">
+            Update gate details. Gate code and location cannot be changed.
+          </p>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-zinc-900 mb-2">
+                Gate Name *
+              </label>
+              <input
+                type="text"
+                value={editForm.gateName}
+                onChange={(e) => setEditForm({ ...editForm, gateName: e.target.value })}
+                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 focus:border-blue-500 focus:outline-none"
+                placeholder="e.g., Main Entrance Gate"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-zinc-900 mb-2">
+                Gate Type
+              </label>
+              <select
+                value={editForm.gateType}
+                onChange={(e) => setEditForm({ ...editForm, gateType: e.target.value })}
+                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 focus:border-blue-500 focus:outline-none"
+              >
+                <option value="MAIN_GATE">Main Gate</option>
+                <option value="VIP_ENTRANCE">VIP Entrance</option>
+                <option value="STAFF_ENTRANCE">Staff Entrance</option>
+                <option value="PARKING_ENTRANCE">Parking Entrance</option>
+                <option value="SIDE_GATE">Side Gate</option>
+                <option value="BACK_ENTRANCE">Back Entrance</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-zinc-900 mb-2">
+                Description
+              </label>
+              <textarea
+                value={editForm.description}
+                onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+                rows={3}
+                className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm text-zinc-900 focus:border-blue-500 focus:outline-none"
+                placeholder="Additional details about this gate"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="editIsMonitored"
+                checked={editForm.isMonitored}
+                onChange={(e) => setEditForm({ ...editForm, isMonitored: e.target.checked })}
+                className="h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
+              />
+              <label htmlFor="editIsMonitored" className="text-sm text-zinc-900">
+                24/7 Monitored Gate
+              </label>
+            </div>
+          </div>
+
+          <div className="flex gap-3 justify-end mt-6 pt-6 border-t border-zinc-200">
+            <Button outline onClick={closeEditModal}>
+              Cancel
+            </Button>
+            <Button
+              color="blue"
+              onClick={handleUpdateGate}
+              disabled={!editForm.gateName.trim()}
+            >
+              Update Gate
+            </Button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* Delete Gate Confirmation Modal */}
+    {showDeleteModal && gateToDelete && (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
+          <h3 className="text-xl font-semibold text-zinc-900 mb-2">
+            Delete Gate
+          </h3>
+          <p className="text-sm text-zinc-600 mb-4">
+            Are you sure you want to delete <strong>{gateToDelete.name}</strong>?
+          </p>
+
+          <div className="rounded-lg bg-amber-50 p-4 mb-6 border border-amber-200">
+            <p className="text-sm text-amber-800">
+              <strong>Warning:</strong> This will deactivate the gate. The gate will no longer be available for visitor check-ins or staff assignments.
+            </p>
+          </div>
+
+          <div className="flex gap-3 justify-end">
+            <Button outline onClick={closeDeleteModal}>
+              Cancel
+            </Button>
+            <Button
+              color="red"
+              onClick={handleDeleteGate}
+            >
+              Delete Gate
+            </Button>
+          </div>
+        </div>
+      </div>
+    )}
     </div>
     </ApplicationLayout>
   );

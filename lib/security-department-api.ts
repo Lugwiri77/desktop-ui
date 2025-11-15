@@ -814,3 +814,98 @@ export async function createGate(input: {
   const data = await graphql<{ createGate: SecurityGate }>(mutation, { input });
   return data.createGate;
 }
+
+/**
+ * Update an existing location
+ * Access: Administrators and CEO only
+ */
+export async function updateLocation(input: {
+  locationId: string;
+  locationName?: string;
+  locationType?: string;
+  addressLine1?: string;
+  city?: string;
+  country?: string;
+  phoneNumber?: string;
+}): Promise<OrganizationLocation> {
+  const mutation = `
+    mutation UpdateLocation($input: UpdateLocationInput!) {
+      updateLocation(input: $input) {
+        id
+        locationCode
+        locationName
+        locationType
+        addressLine1
+        city
+        country
+        phoneNumber
+        isActive
+        createdAt
+      }
+    }
+  `;
+
+  const data = await graphql<{ updateLocation: OrganizationLocation }>(mutation, { input });
+  return data.updateLocation;
+}
+
+/**
+ * Delete a location (soft delete)
+ * Access: Administrators and CEO only
+ */
+export async function deleteLocation(locationId: string): Promise<boolean> {
+  const mutation = `
+    mutation DeleteLocation($locationId: ID!) {
+      deleteLocation(locationId: $locationId)
+    }
+  `;
+
+  const data = await graphql<{ deleteLocation: boolean }>(mutation, { locationId });
+  return data.deleteLocation;
+}
+
+/**
+ * Update an existing gate
+ * Access: Administrators and Security Department Managers
+ */
+export async function updateGate(input: {
+  gateId: string;
+  gateName?: string;
+  gateType?: GateLocation;
+  description?: string;
+  isMonitored?: boolean;
+}): Promise<SecurityGate> {
+  const mutation = `
+    mutation UpdateGate($input: UpdateGateInput!) {
+      updateGate(input: $input) {
+        id
+        locationId
+        gateCode
+        gateName
+        gateType
+        description
+        isActive
+        isMonitored
+        createdAt
+      }
+    }
+  `;
+
+  const data = await graphql<{ updateGate: SecurityGate }>(mutation, { input });
+  return data.updateGate;
+}
+
+/**
+ * Delete a gate (soft delete)
+ * Access: Administrators and Security Department Managers
+ */
+export async function deleteGate(gateId: string): Promise<boolean> {
+  const mutation = `
+    mutation DeleteGate($gateId: ID!) {
+      deleteGate(gateId: $gateId)
+    }
+  `;
+
+  const data = await graphql<{ deleteGate: boolean }>(mutation, { gateId });
+  return data.deleteGate;
+}

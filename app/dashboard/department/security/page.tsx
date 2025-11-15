@@ -17,6 +17,7 @@ import {
   UserInfo,
 } from '@/lib/roles';
 import Link from 'next/link';
+import VisitorStatsDashboard from './components/VisitorStatsDashboard';
 
 export default function SecurityDepartmentDashboardPage() {
   const router = useRouter();
@@ -138,6 +139,13 @@ export default function SecurityDepartmentDashboardPage() {
             value="--"
             description="Active visits"
           />
+        </div>
+
+        {/* Visitor Statistics Dashboard */}
+        <div>
+          <Heading level={2}>Visitor Statistics</Heading>
+          <Text className="mt-1 mb-4">Real-time visitor tracking and analytics</Text>
+          <VisitorStatsDashboard />
         </div>
 
         {/* Analytics Section */}

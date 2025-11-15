@@ -258,3 +258,23 @@ export function isAllowedUser(userRole: UserRoleType): boolean {
     userRole === UserRoleType.InstitutionStaff
   );
 }
+
+/**
+ * Check if user is a Security Department Manager
+ * Security managers can manage gates but NOT locations
+ */
+export function isSecurityDepartmentManager(userInfo: UserInfo): boolean {
+  if (!isStaff(userInfo.userRole)) return false;
+  return (
+    userInfo.department === 'Security' &&
+    userInfo.staffRole === 'DepartmentManager'
+  );
+}
+
+/**
+ * Check if user can manage gates (update/delete)
+ * Administrators and Security Department Managers can manage gates
+ */
+export function canManageGates(userInfo: UserInfo): boolean {
+  return isAdministrator(userInfo.userRole) || isSecurityDepartmentManager(userInfo);
+}

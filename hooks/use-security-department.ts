@@ -70,8 +70,8 @@ export function useSecurityDepartmentOverview() {
   return useQuery({
     queryKey: securityDepartmentKeys.overview(),
     queryFn: getSecurityDepartmentOverview,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    refetchInterval: 5 * 60 * 1000, // Refetch every 5 minutes
+    staleTime: 30 * 1000, // 30 seconds
+    refetchInterval: 30 * 1000, // Refetch every 30 seconds for real-time dashboard
     refetchOnWindowFocus: true,
   });
 }
@@ -193,8 +193,9 @@ export function useDepartmentVisitors(filters: {
   return useQuery({
     queryKey: securityDepartmentKeys.visitorsList(filters),
     queryFn: () => getDepartmentVisitors(filters),
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    refetchInterval: 3 * 60 * 1000, // Refetch every 3 minutes
+    staleTime: 30 * 1000, // 30 seconds - real-time data
+    refetchInterval: 30 * 1000, // Refetch every 30 seconds for fresh data
+    refetchOnWindowFocus: true, // Refresh when window regains focus
   });
 }
 
@@ -236,8 +237,9 @@ export function useSecurityIncidents(filters?: {
   return useQuery({
     queryKey: securityDepartmentKeys.incidentsList(filters),
     queryFn: () => getSecurityIncidents(filters),
-    staleTime: 2 * 60 * 1000,
-    refetchInterval: 5 * 60 * 1000,
+    staleTime: 20 * 1000, // 20 seconds - critical incidents need real-time updates
+    refetchInterval: 20 * 1000, // Refetch every 20 seconds
+    refetchOnWindowFocus: true, // Refresh when window regains focus
   });
 }
 

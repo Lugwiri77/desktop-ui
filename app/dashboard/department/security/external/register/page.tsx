@@ -116,7 +116,10 @@ export default function RegisterExternalStaffWithPasswordPage() {
     const generated = generateStrongPassword(16);
     setPassword(generated);
     setConfirmPassword(generated);
-    setErrors((prev) => ({ ...prev, password: undefined, confirmPassword: undefined }));
+    setErrors((prev) => {
+      const { password, confirmPassword, ...rest } = prev;
+      return rest;
+    });
   };
 
   const handleCopyPassword = async () => {
@@ -382,7 +385,10 @@ export default function RegisterExternalStaffWithPasswordPage() {
                     value={password}
                     onChange={(e) => {
                       setPassword(e.target.value);
-                      setErrors((prev) => ({ ...prev, password: undefined }));
+                      setErrors((prev) => {
+                        const { password, ...rest } = prev;
+                        return rest;
+                      });
                     }}
                     className={`flex-1 ${errors.password ? 'border-red-500' : ''}`}
                   />
@@ -405,7 +411,10 @@ export default function RegisterExternalStaffWithPasswordPage() {
                   value={confirmPassword}
                   onChange={(e) => {
                     setConfirmPassword(e.target.value);
-                    setErrors((prev) => ({ ...prev, confirmPassword: undefined }));
+                    setErrors((prev) => {
+                      const { confirmPassword, ...rest } = prev;
+                      return rest;
+                    });
                   }}
                   className={errors.confirmPassword ? 'border-red-500' : ''}
                 />

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { ChevronLeft, AlertTriangle, Filter, FileText, CheckCircle, Clock, MapPin } from 'lucide-react';
+import { ChevronLeft, AlertTriangle, Filter, FileText, CheckCircle, Clock, MapPin, RefreshCw } from 'lucide-react';
 import { ApplicationLayout } from '@/app/components/application-layout';
 import { Heading } from '@/app/components/heading';
 import { Text } from '@/app/components/text';
@@ -19,6 +19,7 @@ import {
 } from '@/lib/roles';
 import { getIncidents, resolveIncident, type IncidentSeverity, type SecurityIncident } from '@/lib/security-queries-api';
 import { getDepartmentExternalStaff } from '@/lib/security-department-api';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 export default function IncidentsPage() {
   const router = useRouter();
@@ -27,12 +28,43 @@ export default function IncidentsPage() {
   const [severityFilter, setSeverityFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [selectedIncident, setSelectedIncident] = useState<string | null>(null);
-  const [incidents, setIncidents] = useState<SecurityIncident[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [resolvingIncidentId, setResolvingIncidentId] = useState<string | null>(null);
   const [resolutionNotes, setResolutionNotes] = useState('');
   const [showResolveModal, setShowResolveModal] = useState(false);
+
+  const queryClient = useQueryClient();
+
+  // Build query params based on filters
+  const queryParams = {
+    ...(severityFilter !== 'all' && { severity: severityFilter.toUpperCase() as IncidentSeverity }),
+    ...(statusFilter === 'resolved' && { resolved: true }),
+    ...(statusFilter === 'open' && { resolved: false }),
+  };
+
+  // Use React Query for real-time incident data (auto-refreshes every 20 seconds)
+  const {
+    data: incidents = [],
+    isLoading: loading,
+    error: queryError,
+    refetch,
+    isFetching,
+  } = useQuery({
+    queryKey: ['organizationIncidents', queryParams],
+    queryFn: () => getIncidents(queryParams),
+    staleTime: 20 * 1000, // 20 seconds - critical security data
+    refetchInterval: 20 * 1000,
+    refetchOnWindowFocus: true,
+  });
+
+  const resolveMutation = useMutation({
+    mutationFn: ({ incidentId, resolutionNotes }: { incidentId: string; resolutionNotes: string }) =>
+      resolveIncident(incidentId, resolutionNotes),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['organizationIncidents'] });
+    },
+  });
+
+  const error = queryError ? (queryError instanceof Error ? queryError.message : 'Failed to load incidents') : null;
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -53,48 +85,7 @@ export default function IncidentsPage() {
     }
 
     setUserInfo(info);
-
-    // Fetch incidents
-    fetchIncidents();
   }, [router]);
-
-  const fetchIncidents = async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Build filter params
-      const params: any = {};
-
-      if (severityFilter !== 'all') {
-        params.severity = severityFilter.toUpperCase() as IncidentSeverity;
-      }
-
-      if (statusFilter !== 'all') {
-        // Map status filter to resolved boolean
-        if (statusFilter === 'resolved') {
-          params.resolved = true;
-        } else {
-          params.resolved = false;
-        }
-      }
-
-      const incidentsData = await getIncidents(params);
-      setIncidents(incidentsData);
-    } catch (err: any) {
-      console.error('Failed to fetch incidents:', err);
-      setError(err.message || 'Failed to load incidents');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Refetch when filters change
-  useEffect(() => {
-    if (userInfo) {
-      fetchIncidents();
-    }
-  }, [severityFilter, statusFilter]);
 
   const handleLogout = async () => {
     setLoggingOut(true);
@@ -115,24 +106,24 @@ export default function IncidentsPage() {
       return;
     }
 
-    try {
-      setLoading(true);
-      await resolveIncident(resolvingIncidentId, resolutionNotes);
-
-      // Refresh incidents list
-      await fetchIncidents();
-
-      // Close modal and reset state
-      setShowResolveModal(false);
-      setResolvingIncidentId(null);
-      setResolutionNotes('');
-      setSelectedIncident(null); // Collapse the incident card
-    } catch (err: any) {
-      console.error('Failed to resolve incident:', err);
-      setError(err.message || 'Failed to resolve incident');
-    } finally {
-      setLoading(false);
-    }
+    resolveMutation.mutate(
+      {
+        incidentId: resolvingIncidentId,
+        resolutionNotes,
+      },
+      {
+        onSuccess: () => {
+          // Close modal and reset state
+          setShowResolveModal(false);
+          setResolvingIncidentId(null);
+          setResolutionNotes('');
+          setSelectedIncident(null); // Collapse the incident card
+        },
+        onError: (err: any) => {
+          console.error('Failed to resolve incident:', err);
+        },
+      }
+    );
   };
 
   const openResolveModal = (incidentId: string) => {
@@ -214,14 +205,31 @@ export default function IncidentsPage() {
         </Button>
 
         {/* Header */}
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <AlertTriangle className="h-8 w-8 text-red-600" />
-            <Heading>Security Incidents</Heading>
+        <div className="flex items-start justify-between">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <AlertTriangle className="h-8 w-8 text-red-600" />
+              <Heading>Security Incidents</Heading>
+              {isFetching && (
+                <span className="text-sm font-normal text-blue-600 flex items-center gap-2">
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  Updating...
+                </span>
+              )}
+            </div>
+            <Text className="mt-2">
+              Monitor and manage security incidents across all gates • Auto-refreshes every 20 seconds
+            </Text>
           </div>
-          <Text className="mt-2">
-            Monitor and manage security incidents across all gates
-          </Text>
+          <Button
+            outline
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="flex items-center gap-2"
+          >
+            <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
+            Refresh Now
+          </Button>
         </div>
 
         <Divider />
@@ -232,7 +240,7 @@ export default function IncidentsPage() {
             <p className="text-sm text-red-700">
               <strong>Error:</strong> {error}
             </p>
-            <Button outline className="mt-2" onClick={fetchIncidents}>
+            <Button outline className="mt-2" onClick={() => refetch()}>
               Retry
             </Button>
           </div>
