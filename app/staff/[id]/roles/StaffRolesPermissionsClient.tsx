@@ -31,6 +31,10 @@ interface Roles {
   is_security: boolean;
   is_store_keeper: boolean;
   is_transport: boolean;
+  // Executive support staff roles (for VIP visitor auto-routing)
+  is_secretary: boolean;
+  is_executive_assistant: boolean;
+  is_personal_assistant: boolean;
 }
 
 interface Permissions {
@@ -88,6 +92,10 @@ export default function StaffRolesPermissionsClient() {
     is_security: false,
     is_store_keeper: false,
     is_transport: false,
+    // Executive support staff roles
+    is_secretary: false,
+    is_executive_assistant: false,
+    is_personal_assistant: false,
   });
 
   const [permissions, setPermissions] = useState<Permissions>({
@@ -361,6 +369,33 @@ export default function StaffRolesPermissionsClient() {
                 />
                 <Label>Transport</Label>
                 <Description>Transport department role</Description>
+              </CheckboxField>
+
+              <CheckboxField>
+                <Checkbox
+                  checked={roles.is_secretary}
+                  onChange={() => handleRoleChange('is_secretary')}
+                />
+                <Label>Secretary</Label>
+                <Description>Executive secretary role (handles VIP visitors)</Description>
+              </CheckboxField>
+
+              <CheckboxField>
+                <Checkbox
+                  checked={roles.is_executive_assistant}
+                  onChange={() => handleRoleChange('is_executive_assistant')}
+                />
+                <Label>Executive Assistant</Label>
+                <Description>Executive assistant role (handles VIP visitors)</Description>
+              </CheckboxField>
+
+              <CheckboxField>
+                <Checkbox
+                  checked={roles.is_personal_assistant}
+                  onChange={() => handleRoleChange('is_personal_assistant')}
+                />
+                <Label>Personal Assistant</Label>
+                <Description>Personal assistant role (handles VIP visitors)</Description>
               </CheckboxField>
             </div>
           </div>

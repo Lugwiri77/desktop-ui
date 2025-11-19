@@ -32,6 +32,10 @@ export interface Roles {
   is_security?: boolean;
   is_store_keeper?: boolean;
   is_transport?: boolean;
+  // Executive support staff roles (for VIP visitor auto-routing)
+  is_secretary?: boolean;
+  is_executive_assistant?: boolean;
+  is_personal_assistant?: boolean;
 }
 
 export interface Permissions {
@@ -176,6 +180,19 @@ export function getAccountTypeDisplayName(accountType: AccountType): string {
       return 'Personal';
     default:
       return 'Unknown';
+  }
+}
+
+/**
+ * Check if user is authenticated
+ */
+export function isAuthenticated(): boolean {
+  try {
+    const userRoleStr = localStorage.getItem('user_role');
+    const email = localStorage.getItem('user_email');
+    return !!(userRoleStr && email);
+  } catch (error) {
+    return false;
   }
 }
 

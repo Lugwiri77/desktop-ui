@@ -143,6 +143,12 @@ export interface GranularPermissions {
   can_view_visitor_analytics: boolean;
   can_export_visitor_reports: boolean;
   can_generate_visitor_insights: boolean;
+
+  // Executive/VIP Roles (for CEO visitor auto-routing)
+  is_chief_executive_officer: boolean;
+  is_secretary: boolean;
+  is_executive_assistant: boolean;
+  is_personal_assistant: boolean;
 }
 
 /**

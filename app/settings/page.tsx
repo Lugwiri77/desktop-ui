@@ -11,6 +11,7 @@ import { Input } from '../components/input';
 import { Select } from '../components/select';
 import { Radio, RadioField, RadioGroup } from '../components/radio';
 import { isAuthenticated, get, put, post } from '@/lib/api';
+import { graphql } from '@/lib/graphql';
 import {
   loadUserInfo,
   isAdministrator,
@@ -57,6 +58,12 @@ interface DatabaseConfigResponse {
   data: DatabaseConfig;
 }
 
+interface OtpSettings {
+  requireVisitorOtp: boolean;
+  otpExpiryMinutes: number;
+  otpDigitLength: number;
+}
+
 export default function SettingsPage() {
   const router = useRouter();
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
@@ -83,6 +90,17 @@ export default function SettingsPage() {
   const [needsMigration, setNeedsMigration] = useState(false);
   const [migrationSource, setMigrationSource] = useState<DatabaseStrategy>('kastaem_only');
 
+  // OTP Settings state
+  const [otpSettings, setOtpSettings] = useState<OtpSettings>({
+    requireVisitorOtp: false,
+    otpExpiryMinutes: 10,
+    otpDigitLength: 6,
+  });
+  const [otpLoading, setOtpLoading] = useState(false);
+  const [otpSaving, setOtpSaving] = useState(false);
+  const [otpError, setOtpError] = useState('');
+  const [otpSuccess, setOtpSuccess] = useState('');
+
   useEffect(() => {
     if (!isAuthenticated()) {
       router.push('/login');
@@ -105,6 +123,7 @@ export default function SettingsPage() {
     setUserInfo(info);
     fetchDatabaseConfig();
     fetchMetrics();
+    fetchOtpSettings();
   }, [router]);
 
   // Fetch storage stats when configuration changes
@@ -294,6 +313,54 @@ export default function SettingsPage() {
       setError(err.message || 'Failed to cleanup temporary files.');
     } finally {
       setCleaningUp(false);
+    }
+  };
+
+  const fetchOtpSettings = async () => {
+    try {
+      setOtpLoading(true);
+      const data = await graphql<{ organizationOtpSettings: OtpSettings }>(`
+        query {
+          organizationOtpSettings {
+            requireVisitorOtp
+            otpExpiryMinutes
+            otpDigitLength
+          }
+        }
+      `);
+      setOtpSettings(data.organizationOtpSettings);
+    } catch (err: any) {
+      console.error('Failed to fetch OTP settings:', err);
+      setOtpError(err.message || 'Failed to load OTP settings');
+    } finally {
+      setOtpLoading(false);
+    }
+  };
+
+  const handleOtpSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setOtpError('');
+    setOtpSuccess('');
+    setOtpSaving(true);
+
+    try {
+      await graphql<{ updateOtpSettings: boolean }>(`
+        mutation($input: UpdateOtpSettingsInput!) {
+          updateOtpSettings(input: $input)
+        }
+      `, {
+        input: {
+          requireVisitorOtp: otpSettings.requireVisitorOtp,
+          otpExpiryMinutes: otpSettings.otpExpiryMinutes,
+          otpDigitLength: otpSettings.otpDigitLength,
+        },
+      });
+
+      setOtpSuccess('OTP settings updated successfully!');
+    } catch (err: any) {
+      setOtpError(err.message || 'Failed to update OTP settings');
+    } finally {
+      setOtpSaving(false);
     }
   };
 
@@ -737,14 +804,156 @@ export default function SettingsPage() {
           </div>
         )}
 
-        {/* Additional Settings Sections - Placeholders */}
+        {/* OTP Settings */}
         <div className="rounded-lg bg-white p-6 shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
-          <h3 className="text-base font-semibold text-zinc-950 dark:text-white mb-2">
-            Additional Settings
-          </h3>
-          <p className="text-sm text-zinc-500 dark:text-zinc-400">
-            More settings options coming soon (notifications, security, integrations, etc.)
-          </p>
+          <div className="mb-6">
+            <h3 className="text-base font-semibold text-zinc-950 dark:text-white mb-2">
+              Visitor OTP Settings
+            </h3>
+            <p className="text-sm text-zinc-500 dark:text-zinc-400">
+              Configure whether visitors must verify a One-Time Password (OTP) before being routed within your organization.
+            </p>
+          </div>
+
+          {otpLoading ? (
+            <div className="text-center py-8">
+              <div className="text-zinc-600 dark:text-zinc-400">Loading OTP settings...</div>
+            </div>
+          ) : (
+            <form onSubmit={handleOtpSubmit} className="space-y-6">
+              {/* Error Message */}
+              {otpError && (
+                <div className="rounded-lg bg-red-50 p-4 border border-red-200 dark:bg-red-950/30 dark:border-red-800">
+                  <p className="text-sm text-red-800 dark:text-red-200">{otpError}</p>
+                </div>
+              )}
+
+              {/* Success Message */}
+              {otpSuccess && (
+                <div className="rounded-lg bg-green-50 p-4 border border-green-200 dark:bg-green-950/30 dark:border-green-800">
+                  <p className="text-sm text-green-800 dark:text-green-200">{otpSuccess}</p>
+                </div>
+              )}
+
+              {/* Require OTP Toggle */}
+              <Field>
+                <Label>Require Visitor OTP</Label>
+                <Description>
+                  When enabled, visitors must verify an OTP code sent to their phone before being routed.
+                  When disabled, QR code encryption and ID verification are sufficient.
+                </Description>
+                <div className="mt-3">
+                  <RadioGroup
+                    value={otpSettings.requireVisitorOtp ? 'enabled' : 'disabled'}
+                    onChange={(value) =>
+                      setOtpSettings({ ...otpSettings, requireVisitorOtp: value === 'enabled' })
+                    }
+                  >
+                    <RadioField>
+                      <Radio value="enabled" />
+                      <Label>Enabled (Require OTP verification)</Label>
+                      <Description>
+                        Higher security: Visitors must verify their phone number with an OTP code.
+                      </Description>
+                    </RadioField>
+                    <RadioField>
+                      <Radio value="disabled" />
+                      <Label>Disabled (QR code + ID check only)</Label>
+                      <Description>
+                        Faster check-in: Visitors can proceed immediately after QR scan and ID verification.
+                      </Description>
+                    </RadioField>
+                  </RadioGroup>
+                </div>
+              </Field>
+
+              {/* OTP Expiry Minutes */}
+              <Field>
+                <Label>OTP Expiry Time (minutes)</Label>
+                <Description>
+                  How long the OTP code remains valid before expiring (5-60 minutes).
+                </Description>
+                <Select
+                  value={String(otpSettings.otpExpiryMinutes)}
+                  onChange={(e) =>
+                    setOtpSettings({ ...otpSettings, otpExpiryMinutes: parseInt(e.target.value) })
+                  }
+                >
+                  <option value="5">5 minutes</option>
+                  <option value="10">10 minutes (recommended)</option>
+                  <option value="15">15 minutes</option>
+                  <option value="30">30 minutes</option>
+                  <option value="60">60 minutes</option>
+                </Select>
+              </Field>
+
+              {/* OTP Digit Length */}
+              <Field>
+                <Label>OTP Code Length</Label>
+                <Description>
+                  Number of digits in the OTP code. Longer codes are more secure but harder to type.
+                </Description>
+                <RadioGroup
+                  value={String(otpSettings.otpDigitLength)}
+                  onChange={(value) =>
+                    setOtpSettings({ ...otpSettings, otpDigitLength: parseInt(value) })
+                  }
+                >
+                  <RadioField>
+                    <Radio value="4" />
+                    <Label>4 digits</Label>
+                    <Description>Easiest to type, lower security</Description>
+                  </RadioField>
+                  <RadioField>
+                    <Radio value="6" />
+                    <Label>6 digits (recommended)</Label>
+                    <Description>Good balance between security and usability</Description>
+                  </RadioField>
+                  <RadioField>
+                    <Radio value="8" />
+                    <Label>8 digits</Label>
+                    <Description>Highest security, harder to type</Description>
+                  </RadioField>
+                </RadioGroup>
+              </Field>
+
+              {/* Info Notice */}
+              <div className="rounded-lg bg-blue-50 p-4 border border-blue-200 dark:bg-blue-950/30 dark:border-blue-800">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 mt-0.5">
+                    <svg className="h-5 w-5 text-blue-600 dark:text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-sm font-semibold text-blue-900 dark:text-blue-100 mb-1">
+                      How OTP Works
+                    </h4>
+                    <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1 list-disc list-inside">
+                      <li>When a visitor scans their QR code at the gate, an OTP is sent to their registered phone number</li>
+                      <li>The visitor provides the OTP to security staff for verification</li>
+                      <li>Once verified, the visitor is automatically routed to their destination (if applicable)</li>
+                      <li>If OTP is disabled, visitors proceed immediately after QR scan and ID check</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {/* Submit Button */}
+              <div className="flex gap-4">
+                <Button type="submit" disabled={otpSaving}>
+                  {otpSaving ? 'Saving...' : 'Save OTP Settings'}
+                </Button>
+                <Button
+                  type="button"
+                  onClick={fetchOtpSettings}
+                  className="bg-zinc-500 hover:bg-zinc-600"
+                >
+                  Reset to Current
+                </Button>
+              </div>
+            </form>
+          )}
         </div>
       </div>
     </ApplicationLayout>

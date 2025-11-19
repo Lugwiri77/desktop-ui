@@ -40,6 +40,9 @@ import {
   BriefcaseIcon,
   BuildingOfficeIcon,
   UserGroupIcon,
+  QuestionMarkCircleIcon,
+  BookOpenIcon,
+  AcademicCapIcon,
 } from '@heroicons/react/20/solid'
 import { useRouter, usePathname } from 'next/navigation'
 import { Logo } from './logo'
@@ -256,6 +259,24 @@ export function ApplicationLayout({ children, userInfo, onLogout, roleDisplayNam
                 <SidebarItem href="/staff/register">Register New Staff</SidebarItem>
                 <SidebarItem href="/reports/generate">Generate Report</SidebarItem>
                 <SidebarItem href="/departments/create">Create Department</SidebarItem>
+              </SidebarSection>
+            )}
+
+            {userInfo.isAdministrator && (
+              <SidebarSection>
+                <SidebarHeading>Help & Guides</SidebarHeading>
+                <SidebarItem href="/help" current={pathname === '/help'}>
+                  <QuestionMarkCircleIcon />
+                  <SidebarLabel>Documentation</SidebarLabel>
+                </SidebarItem>
+                <SidebarItem href="/help/roles-permissions" current={pathname === '/help/roles-permissions'}>
+                  <AcademicCapIcon />
+                  <SidebarLabel>Roles & Permissions</SidebarLabel>
+                </SidebarItem>
+                <SidebarItem href="/help/ceo-secretary-setup" current={pathname === '/help/ceo-secretary-setup'}>
+                  <BookOpenIcon />
+                  <SidebarLabel>CEO/Secretary Setup</SidebarLabel>
+                </SidebarItem>
               </SidebarSection>
             )}
 

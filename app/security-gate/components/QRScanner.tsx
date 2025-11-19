@@ -2,8 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Camera, X, Check, AlertCircle, ArrowDownToLine, ArrowUpFromLine } from 'lucide-react';
-import { scanVisitorEntry, scanVisitorExit } from '@/lib/security-gate';
+import { Camera, X, Check, AlertCircle, ArrowDownToLine, ArrowUpFromLine, KeyRound } from 'lucide-react';
+import { scanVisitorEntry, scanVisitorExit, verifyVisitorOtp, VisitorScanResult } from '@/lib/security-gate';
 
 interface QRScannerProps {
   onScanSuccess?: () => void;
@@ -19,6 +19,12 @@ export default function QRScanner({ onScanSuccess }: QRScannerProps) {
     time?: string;
   } | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // OTP verification state
+  const [otpVerificationMode, setOtpVerificationMode] = useState(false);
+  const [currentVisitor, setCurrentVisitor] = useState<VisitorScanResult | null>(null);
+  const [otpCode, setOtpCode] = useState('');
+  const otpInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-focus input for barcode scanners
   useEffect(() => {
@@ -46,17 +52,33 @@ export default function QRScanner({ onScanSuccess }: QRScannerProps) {
   const entryMutation = useMutation({
     mutationFn: scanVisitorEntry,
     onSuccess: (data) => {
-      setLastScanResult({
-        success: true,
-        message: 'Entry recorded successfully',
-        visitorName: data.visitorFullName,
-        time: new Date().toLocaleTimeString(),
-      });
-      setQrData('');
-      onScanSuccess?.();
+      // Check if OTP verification is required
+      if (data.otpRequired) {
+        setCurrentVisitor(data);
+        setOtpVerificationMode(true);
+        setQrData('');
+        setLastScanResult({
+          success: true,
+          message: `OTP Required: SMS sent to ${data.visitorPhoneNumber}`,
+          visitorName: data.visitorFullName,
+          time: new Date().toLocaleTimeString(),
+        });
+        // Focus OTP input
+        setTimeout(() => otpInputRef.current?.focus(), 100);
+      } else {
+        // OTP not required or already verified
+        setLastScanResult({
+          success: true,
+          message: 'Entry recorded successfully - Visitor verified',
+          visitorName: data.visitorFullName,
+          time: new Date().toLocaleTimeString(),
+        });
+        setQrData('');
+        onScanSuccess?.();
 
-      // Auto-clear result after 3 seconds
-      setTimeout(() => setLastScanResult(null), 3000);
+        // Auto-clear result after 3 seconds
+        setTimeout(() => setLastScanResult(null), 3000);
+      }
     },
     onError: (error: any) => {
       setLastScanResult({
@@ -65,6 +87,50 @@ export default function QRScanner({ onScanSuccess }: QRScannerProps) {
         time: new Date().toLocaleTimeString(),
       });
       setQrData('');
+
+      // Auto-clear error after 5 seconds
+      setTimeout(() => setLastScanResult(null), 5000);
+    },
+  });
+
+  // OTP verification mutation
+  const otpVerificationMutation = useMutation({
+    mutationFn: verifyVisitorOtp,
+    onSuccess: (verified) => {
+      if (verified) {
+        setLastScanResult({
+          success: true,
+          message: 'OTP Verified - Visitor authenticated successfully',
+          visitorName: currentVisitor?.visitorFullName,
+          time: new Date().toLocaleTimeString(),
+        });
+        setOtpVerificationMode(false);
+        setCurrentVisitor(null);
+        setOtpCode('');
+        onScanSuccess?.();
+
+        // Auto-clear result after 3 seconds
+        setTimeout(() => setLastScanResult(null), 3000);
+      } else {
+        setLastScanResult({
+          success: false,
+          message: 'Invalid or expired OTP code - Please try again',
+          time: new Date().toLocaleTimeString(),
+        });
+        setOtpCode('');
+        // Keep in OTP mode to retry
+
+        // Auto-clear error after 5 seconds
+        setTimeout(() => setLastScanResult(null), 5000);
+      }
+    },
+    onError: (error: any) => {
+      setLastScanResult({
+        success: false,
+        message: error.message || 'OTP verification failed',
+        time: new Date().toLocaleTimeString(),
+      });
+      setOtpCode('');
 
       // Auto-clear error after 5 seconds
       setTimeout(() => setLastScanResult(null), 5000);
@@ -111,39 +177,59 @@ export default function QRScanner({ onScanSuccess }: QRScannerProps) {
     }
   };
 
-  const isPending = entryMutation.isPending || exitMutation.isPending;
+  const handleOtpSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!otpCode.trim() || !currentVisitor) return;
+
+    otpVerificationMutation.mutate({
+      visitorLogId: currentVisitor.id,
+      otpCode: otpCode.trim(),
+    });
+  };
+
+  const handleCancelOtp = () => {
+    setOtpVerificationMode(false);
+    setCurrentVisitor(null);
+    setOtpCode('');
+    setLastScanResult(null);
+    inputRef.current?.focus();
+  };
+
+  const isPending = entryMutation.isPending || exitMutation.isPending || otpVerificationMutation.isPending;
 
   return (
     <div className="space-y-6">
-      {/* Mode Toggle */}
-      <div className="flex gap-2">
-        <button
-          onClick={() => setScanMode('entry')}
-          className={`flex-1 rounded-lg border px-6 py-4 text-sm font-medium transition-all ${
-            scanMode === 'entry'
-              ? 'border-green-500/50 bg-green-500/10 text-green-400'
-              : 'border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white'
-          }`}
-        >
-          <div className="flex items-center justify-center gap-2">
-            <ArrowDownToLine className="h-5 w-5" />
-            <span>Entry Scan</span>
-          </div>
-        </button>
-        <button
-          onClick={() => setScanMode('exit')}
-          className={`flex-1 rounded-lg border px-6 py-4 text-sm font-medium transition-all ${
-            scanMode === 'exit'
-              ? 'border-blue-500/50 bg-blue-500/10 text-blue-400'
-              : 'border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white'
-          }`}
-        >
-          <div className="flex items-center justify-center gap-2">
-            <ArrowUpFromLine className="h-5 w-5" />
-            <span>Exit Scan</span>
-          </div>
-        </button>
-      </div>
+      {/* Mode Toggle - Hide when in OTP verification mode */}
+      {!otpVerificationMode && (
+        <div className="flex gap-2">
+          <button
+            onClick={() => setScanMode('entry')}
+            className={`flex-1 rounded-lg border px-6 py-4 text-sm font-medium transition-all ${
+              scanMode === 'entry'
+                ? 'border-green-500/50 bg-green-500/10 text-green-400'
+                : 'border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white'
+            }`}
+          >
+            <div className="flex items-center justify-center gap-2">
+              <ArrowDownToLine className="h-5 w-5" />
+              <span>Entry Scan</span>
+            </div>
+          </button>
+          <button
+            onClick={() => setScanMode('exit')}
+            className={`flex-1 rounded-lg border px-6 py-4 text-sm font-medium transition-all ${
+              scanMode === 'exit'
+                ? 'border-blue-500/50 bg-blue-500/10 text-blue-400'
+                : 'border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10 hover:text-white'
+            }`}
+          >
+            <div className="flex items-center justify-center gap-2">
+              <ArrowUpFromLine className="h-5 w-5" />
+              <span>Exit Scan</span>
+            </div>
+          </button>
+        </div>
+      )}
 
       {/* Scan Result Notification */}
       {lastScanResult && (
@@ -189,70 +275,144 @@ export default function QRScanner({ onScanSuccess }: QRScannerProps) {
         </div>
       )}
 
-      {/* Scanner Interface */}
-      <form onSubmit={handleScan} className="space-y-4">
-        <div className="rounded-xl border-2 border-dashed border-white/20 bg-white/5 p-12">
-          <div className="text-center space-y-6">
-            <div className="mx-auto w-32 h-32 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center">
-              <Camera className="h-16 w-16 text-blue-400" />
-            </div>
-
-            <div>
-              <h3 className="text-lg font-semibold text-white">
-                {scanMode === 'entry' ? 'Scan Visitor Entry' : 'Scan Visitor Exit'}
-              </h3>
-              <p className="mt-1 text-sm text-zinc-400">
-                Place QR code in front of scanner or type manually
-              </p>
-            </div>
-
-            {/* Manual Input (hidden but functional for barcode scanners) */}
-            <input
-              ref={inputRef}
-              type="text"
-              value={qrData}
-              onChange={(e) => setQrData(e.target.value)}
-              onBlur={handleBlur}
-              className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-              placeholder="QR Code data or barcode..."
-              autoFocus
-              disabled={isPending}
-            />
-
-            {isPending && (
-              <div className="flex items-center justify-center gap-2 text-blue-400">
-                <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-400 border-t-transparent" />
-                <span className="text-sm">Processing...</span>
+      {/* OTP Verification Interface */}
+      {otpVerificationMode && currentVisitor ? (
+        <form onSubmit={handleOtpSubmit} className="space-y-4">
+          <div className="rounded-xl border-2 border-dashed border-yellow-500/30 bg-yellow-500/5 p-12">
+            <div className="text-center space-y-6">
+              <div className="mx-auto w-32 h-32 rounded-xl bg-gradient-to-br from-yellow-500/20 to-orange-500/20 flex items-center justify-center">
+                <KeyRound className="h-16 w-16 text-yellow-400" />
               </div>
-            )}
-          </div>
-        </div>
 
-        {/* Manual Scan Button */}
-        <button
-          type="submit"
-          disabled={!qrData || isPending}
-          className={`w-full rounded-lg px-6 py-4 font-medium transition-all ${
-            scanMode === 'entry'
-              ? 'bg-green-600 hover:bg-green-700 text-white'
-              : 'bg-blue-600 hover:bg-blue-700 text-white'
-          } disabled:opacity-50 disabled:cursor-not-allowed`}
-        >
-          {isPending
-            ? 'Processing...'
-            : `Record ${scanMode === 'entry' ? 'Entry' : 'Exit'}`}
-        </button>
-      </form>
+              <div>
+                <h3 className="text-lg font-semibold text-white">
+                  OTP Verification Required
+                </h3>
+                <p className="mt-1 text-sm text-zinc-400">
+                  Visitor: {currentVisitor.visitorFullName}
+                </p>
+                <p className="mt-1 text-xs text-zinc-500">
+                  SMS sent to {currentVisitor.visitorPhoneNumber}
+                </p>
+              </div>
+
+              {/* OTP Input */}
+              <input
+                ref={otpInputRef}
+                type="text"
+                value={otpCode}
+                onChange={(e) => setOtpCode(e.target.value.replace(/\D/g, ''))}
+                className="w-full rounded-lg border border-yellow-500/30 bg-white/5 px-4 py-4 text-center text-2xl font-mono tracking-widest text-white placeholder-zinc-500 focus:border-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/20"
+                placeholder="Enter OTP Code"
+                maxLength={8}
+                autoFocus
+                disabled={isPending}
+              />
+
+              {isPending && (
+                <div className="flex items-center justify-center gap-2 text-yellow-400">
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-yellow-400 border-t-transparent" />
+                  <span className="text-sm">Verifying...</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* OTP Action Buttons */}
+          <div className="flex gap-3">
+            <button
+              type="submit"
+              disabled={!otpCode || isPending}
+              className="flex-1 rounded-lg bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-4 font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isPending ? 'Verifying...' : 'Verify OTP'}
+            </button>
+            <button
+              type="button"
+              onClick={handleCancelOtp}
+              disabled={isPending}
+              className="rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-white px-6 py-4 font-medium transition-all disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      ) : (
+        /* Scanner Interface */
+        <form onSubmit={handleScan} className="space-y-4">
+          <div className="rounded-xl border-2 border-dashed border-white/20 bg-white/5 p-12">
+            <div className="text-center space-y-6">
+              <div className="mx-auto w-32 h-32 rounded-xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center">
+                <Camera className="h-16 w-16 text-blue-400" />
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold text-white">
+                  {scanMode === 'entry' ? 'Scan Visitor Entry' : 'Scan Visitor Exit'}
+                </h3>
+                <p className="mt-1 text-sm text-zinc-400">
+                  Place QR code in front of scanner or type manually
+                </p>
+              </div>
+
+              {/* Manual Input (hidden but functional for barcode scanners) */}
+              <input
+                ref={inputRef}
+                type="text"
+                value={qrData}
+                onChange={(e) => setQrData(e.target.value)}
+                onBlur={handleBlur}
+                className="w-full rounded-lg border border-white/10 bg-white/5 px-4 py-3 text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                placeholder="QR Code data or barcode..."
+                autoFocus
+                disabled={isPending}
+              />
+
+              {isPending && (
+                <div className="flex items-center justify-center gap-2 text-blue-400">
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-blue-400 border-t-transparent" />
+                  <span className="text-sm">Processing...</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Manual Scan Button */}
+          <button
+            type="submit"
+            disabled={!qrData || isPending}
+            className={`w-full rounded-lg px-6 py-4 font-medium transition-all ${
+              scanMode === 'entry'
+                ? 'bg-green-600 hover:bg-green-700 text-white'
+                : 'bg-blue-600 hover:bg-blue-700 text-white'
+            } disabled:opacity-50 disabled:cursor-not-allowed`}
+          >
+            {isPending
+              ? 'Processing...'
+              : `Record ${scanMode === 'entry' ? 'Entry' : 'Exit'}`}
+          </button>
+        </form>
+      )}
 
       {/* Instructions */}
       <div className="rounded-lg border border-white/10 bg-white/5 p-4">
         <h4 className="text-sm font-medium text-white mb-2">Instructions:</h4>
-        <ul className="text-sm text-zinc-400 space-y-1">
-          <li>• Use a barcode scanner for fastest entry</li>
-          <li>• Ensure QR code is clear and well-lit</li>
-          <li>• Verify visitor details before confirming</li>
-          <li>• Report any scanning issues immediately</li>
-        </ul>
+        {otpVerificationMode ? (
+          <ul className="text-sm text-zinc-400 space-y-1">
+            <li>• Ask visitor for the OTP code sent to their phone</li>
+            <li>• Enter the exact code displayed in the SMS</li>
+            <li>• OTP codes expire after the configured time (usually 10 minutes)</li>
+            <li>• If code is invalid or expired, cancel and rescan visitor QR</li>
+          </ul>
+        ) : (
+          <ul className="text-sm text-zinc-400 space-y-1">
+            <li>• Use a barcode scanner for fastest entry</li>
+            <li>• Ensure QR code is clear and well-lit</li>
+            <li>• If OTP is required, SMS will be sent automatically</li>
+            <li>• Verify visitor ID document along with QR scan</li>
+            <li>• Report any scanning issues immediately</li>
+          </ul>
+        )}
       </div>
     </div>
   );

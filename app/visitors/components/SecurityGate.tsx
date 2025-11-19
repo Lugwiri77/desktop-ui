@@ -64,9 +64,19 @@ export default function SecurityGate({ permissions }: SecurityGateProps) {
       verifyVisitorOtp(visitorLogId, otpCode),
     onSuccess: (verified) => {
       if (verified) {
+        // OTP verified successfully - visitor status automatically updated to 'pending_routing'
+        // Invalidate all visitor queries to show updated status
+        queryClient.invalidateQueries({ queryKey: ['activeVisitors'] });
+        queryClient.invalidateQueries({ queryKey: ['visitorStats'] });
+
+        const visitorName = selectedVisitor?.visitorFullName || 'Visitor';
+
         setShowOtpDialog(false);
         setOtpCode('');
         setSelectedVisitor(null);
+
+        // Show success message
+        alert(`✓ ${visitorName} verified successfully!\n\nVisitor has been sent to customer care for routing.`);
       } else {
         alert('Invalid OTP code. Please try again.');
       }

@@ -132,10 +132,26 @@ export interface ScanExitInput {
   exitNotes?: string;
 }
 
+export interface VisitorScanResult {
+  id: string;
+  visitorFullName: string;
+  visitorPhoneNumber: string;
+  entryTime: string;
+  status: string;
+  otpVerified: boolean;
+  otpRequired?: boolean;
+}
+
+export interface VerifyOtpInput {
+  visitorLogId: string;
+  otpCode: string;
+}
+
 /**
  * Scan visitor entry at security gate
+ * Returns visitor info including OTP requirement status
  */
-export async function scanVisitorEntry(input: ScanEntryInput) {
+export async function scanVisitorEntry(input: ScanEntryInput): Promise<VisitorScanResult> {
   const mutation = `
     mutation ScanVisitorEntry($input: ScanEntryInput!) {
       scanVisitorEntry(input: $input) {
@@ -144,12 +160,38 @@ export async function scanVisitorEntry(input: ScanEntryInput) {
         visitorPhoneNumber
         entryTime
         status
+        otpVerified
       }
     }
   `;
 
-  const data = await graphql<{ scanVisitorEntry: any }>(mutation, { input });
-  return data.scanVisitorEntry;
+  const data = await graphql<{ scanVisitorEntry: VisitorScanResult }>(mutation, { input });
+
+  // Determine if OTP is required by checking if visitor is verified
+  // If not verified after scan, it means OTP is required
+  const result = data.scanVisitorEntry;
+  result.otpRequired = !result.otpVerified && result.status === 'checked_in';
+
+  return result;
+}
+
+/**
+ * Verify visitor OTP code
+ * Call this after scanning if OTP is required
+ */
+export async function verifyVisitorOtp(input: VerifyOtpInput): Promise<boolean> {
+  const mutation = `
+    mutation VerifyVisitorOtp($visitorLogId: String!, $otpCode: String!) {
+      verifyVisitorOtp(visitorLogId: $visitorLogId, otpCode: $otpCode)
+    }
+  `;
+
+  const data = await graphql<{ verifyVisitorOtp: boolean }>(mutation, {
+    visitorLogId: input.visitorLogId,
+    otpCode: input.otpCode,
+  });
+
+  return data.verifyVisitorOtp;
 }
 
 /**

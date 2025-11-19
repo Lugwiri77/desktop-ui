@@ -28,10 +28,11 @@ import {
 } from '@/lib/roles';
 
 // RBAC Role Types (for form state)
-type StaffRoleType = 'Administrator' | 'HRManager' | 'ITAdministrator' | 'DepartmentManager' | 'Staff';
+type StaffRoleType = 'Administrator' | 'CEO' | 'HRManager' | 'ITAdministrator' | 'DepartmentManager' | 'Staff';
 
 const roleDescriptions: Record<StaffRoleType, string> = {
   Administrator: 'Full system access - Can manage all aspects of the organization',
+  CEO: 'Chief Executive Officer - Executive leadership with full system access',
   HRManager: 'Human Resources - Manage staff, departments, and assign roles',
   ITAdministrator: 'IT System Admin - Manage database config, integrations, and system settings',
   DepartmentManager: 'Department Manager - Scoped access to manage a specific department',
@@ -91,6 +92,66 @@ const defaultPermissions: Record<StaffRoleType, GranularPermissions> = {
     can_view_visitor_analytics: true,
     can_export_visitor_reports: true,
     can_generate_visitor_insights: true,
+    is_chief_executive_officer: false,
+    is_secretary: false,
+    is_executive_assistant: false,
+    is_personal_assistant: false,
+  },
+  CEO: {
+    can_update_org_settings: true,
+    can_manage_database_config: true,
+    can_view_org_info: true,
+    can_update_org_info: true,
+    can_register_staff: true,
+    can_update_staff_info: true,
+    can_deactivate_staff: true,
+    can_view_staff_list: true,
+    can_view_staff_details: true,
+    can_assign_roles: true,
+    can_manage_permissions: true,
+    can_reset_staff_passwords: true,
+    can_create_departments: true,
+    can_update_departments: true,
+    can_delete_departments: true,
+    can_view_departments: true,
+    can_assign_department_managers: true,
+    can_view_department_staff: true,
+    can_update_department_staff: true,
+    can_approve_department_requests: true,
+    can_manage_integrations: true,
+    can_view_system_logs: true,
+    can_manage_security_settings: true,
+    can_configure_backups: true,
+    can_manage_api_keys: true,
+    can_view_audit_logs: true,
+    can_export_reports: true,
+    can_view_compliance_data: true,
+    can_create: true,
+    can_update: true,
+    can_approve: true,
+    can_delete: true,
+    can_write: true,
+    can_read: true,
+    can_publish: true,
+    can_scan_visitor_entry: true,
+    can_scan_visitor_exit: true,
+    can_view_visitor_logs: true,
+    can_manage_security_alerts: true,
+    can_route_visitors: true,
+    can_assign_visitor_destination: true,
+    can_update_visitor_status: true,
+    can_send_visitor_notifications: true,
+    can_view_assigned_visitors: true,
+    can_mark_visitor_served: true,
+    can_transfer_visitors: true,
+    can_view_visitor_history: true,
+    can_view_visitor_analytics: true,
+    can_export_visitor_reports: true,
+    can_generate_visitor_insights: true,
+    is_chief_executive_officer: false,
+    is_secretary: false,
+    is_executive_assistant: false,
+    is_personal_assistant: false,
   },
   HRManager: {
     can_update_org_settings: false,
@@ -144,6 +205,10 @@ const defaultPermissions: Record<StaffRoleType, GranularPermissions> = {
     can_view_visitor_analytics: true,
     can_export_visitor_reports: true,
     can_generate_visitor_insights: true,
+    is_chief_executive_officer: false,
+    is_secretary: false,
+    is_executive_assistant: false,
+    is_personal_assistant: false,
   },
   ITAdministrator: {
     can_update_org_settings: false,
@@ -197,6 +262,10 @@ const defaultPermissions: Record<StaffRoleType, GranularPermissions> = {
     can_view_visitor_analytics: true,
     can_export_visitor_reports: false,
     can_generate_visitor_insights: false,
+    is_chief_executive_officer: false,
+    is_secretary: false,
+    is_executive_assistant: false,
+    is_personal_assistant: false,
   },
   DepartmentManager: {
     can_update_org_settings: false,
@@ -250,6 +319,10 @@ const defaultPermissions: Record<StaffRoleType, GranularPermissions> = {
     can_view_visitor_analytics: true,
     can_export_visitor_reports: true,
     can_generate_visitor_insights: false,
+    is_chief_executive_officer: false,
+    is_secretary: false,
+    is_executive_assistant: false,
+    is_personal_assistant: false,
   },
   Staff: {
     can_update_org_settings: false,
@@ -303,6 +376,10 @@ const defaultPermissions: Record<StaffRoleType, GranularPermissions> = {
     can_view_visitor_analytics: false,
     can_export_visitor_reports: false,
     can_generate_visitor_insights: false,
+    is_chief_executive_officer: false,
+    is_secretary: false,
+    is_executive_assistant: false,
+    is_personal_assistant: false,
   },
 };
 
@@ -999,6 +1076,47 @@ export default function StaffRBACRolesPage() {
                       />
                       <Label>Can generate visitor insights</Label>
                       <Description>Create advanced analytics and trends</Description>
+                    </CheckboxField>
+                  </div>
+                </div>
+
+                {/* Executive/VIP Roles */}
+                <div className="mb-4">
+                  <h5 className="text-xs font-medium text-zinc-700 dark:text-zinc-300 mb-2">
+                    Executive/VIP Roles (for CEO visitor auto-routing)
+                  </h5>
+                  <div className="space-y-2 pl-2">
+                    <CheckboxField>
+                      <Checkbox
+                        checked={permissions.is_chief_executive_officer || false}
+                        onChange={() => handlePermissionChange('is_chief_executive_officer')}
+                      />
+                      <Label>Is Chief Executive Officer</Label>
+                      <Description>CEO role - visitors requesting CEO are routed here</Description>
+                    </CheckboxField>
+                    <CheckboxField>
+                      <Checkbox
+                        checked={permissions.is_secretary || false}
+                        onChange={() => handlePermissionChange('is_secretary')}
+                      />
+                      <Label>Is Secretary</Label>
+                      <Description>VIP visitors are auto-routed to secretary first</Description>
+                    </CheckboxField>
+                    <CheckboxField>
+                      <Checkbox
+                        checked={permissions.is_executive_assistant || false}
+                        onChange={() => handlePermissionChange('is_executive_assistant')}
+                      />
+                      <Label>Is Executive Assistant</Label>
+                      <Description>VIP visitors are auto-routed to executive assistant</Description>
+                    </CheckboxField>
+                    <CheckboxField>
+                      <Checkbox
+                        checked={permissions.is_personal_assistant || false}
+                        onChange={() => handlePermissionChange('is_personal_assistant')}
+                      />
+                      <Label>Is Personal Assistant</Label>
+                      <Description>VIP visitors are auto-routed to personal assistant</Description>
                     </CheckboxField>
                   </div>
                 </div>

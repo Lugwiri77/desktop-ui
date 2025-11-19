@@ -60,7 +60,7 @@ export default function VisitorsPage() {
   const { data: stats } = useQuery({
     queryKey: ['visitorStats'],
     queryFn: getVisitorStats,
-    refetchInterval: 30000,
+    refetchInterval: 15000, // Faster polling for real-time updates
   });
 
   // Determine which tabs to show based on permissions
@@ -139,9 +139,14 @@ export default function VisitorsPage() {
                 activeTab === 'routing'
                   ? 'border-indigo-500 text-indigo-600 dark:text-indigo-400'
                   : 'border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-700 dark:text-zinc-400 dark:hover:border-zinc-600 dark:hover:text-zinc-300'
-              } whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium`}
+              } relative whitespace-nowrap border-b-2 px-1 py-4 text-sm font-medium`}
             >
               Customer Care
+              {stats && stats.pendingRouting > 0 && (
+                <span className="ml-2 inline-flex items-center justify-center rounded-full bg-amber-500 px-2 py-1 text-xs font-bold text-white">
+                  {stats.pendingRouting}
+                </span>
+              )}
             </button>
           )}
 
