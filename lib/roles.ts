@@ -55,6 +55,7 @@ export interface UserInfo {
   accountType: AccountType;
   organizationType?: string;
   organizationName?: string;
+  organizationId?: string;
   roles?: Roles;
   permissions?: Permissions;
   profilePicUrl?: string;
@@ -62,6 +63,9 @@ export interface UserInfo {
   taxId?: string;
   staffRole?: string;  // e.g., "DepartmentManager", "Staff", "HRManager"
   department?: string; // e.g., "Security", "HR", "IT"
+  userId: string;
+  educationalInstitutionSubcategory?: string; // e.g., "PrimarySchool", "University", "College"
+  realEstateBusinessSubcategory?: string; // e.g., "ResidentialRealEstate", "CommercialRealEstate"
 }
 
 /**
@@ -184,6 +188,29 @@ export function getAccountTypeDisplayName(accountType: AccountType): string {
 }
 
 /**
+ * Check if user is from an educational institution
+ */
+export function isEducationInstitution(accountType: AccountType, organizationType?: string): boolean {
+  // Must be an institution account
+  if (accountType !== AccountType.Institution) {
+    return false;
+  }
+
+  // Check various formats of education organization type
+  if (!organizationType) {
+    return false;
+  }
+
+  const orgTypeLower = organizationType.toLowerCase();
+  return (
+    orgTypeLower === 'education' ||
+    orgTypeLower === 'institution' ||
+    orgTypeLower === 'educationalinstitution' ||
+    orgTypeLower.includes('education')
+  );
+}
+
+/**
  * Check if user is authenticated
  */
 export function isAuthenticated(): boolean {
@@ -204,20 +231,31 @@ export function loadUserInfo(): UserInfo | null {
     const userRoleStr = localStorage.getItem('user_role');
     const username = localStorage.getItem('username');
     const email = localStorage.getItem('user_email');
+    const userId = localStorage.getItem('user_id');
     const organizationType = localStorage.getItem('organization_type');
     const organizationName = localStorage.getItem('organization_name');
+    const organizationId = localStorage.getItem('organization_id');
     const profilePicUrl = localStorage.getItem('profile_pic_url');
     const logoUrl = localStorage.getItem('logo_url');
     const taxId = localStorage.getItem('tax_identification_number');
     let staffRole = localStorage.getItem('staff_role');
     let department = localStorage.getItem('department');
+    const educationalInstitutionSubcategory = localStorage.getItem('educational_institution_subcategory');
+    const realEstateBusinessSubcategory = localStorage.getItem('real_estate_business_subcategory');
 
-    console.log('loadUserInfo - organizationName from localStorage:', organizationName);
-    console.log('loadUserInfo - logoUrl from localStorage:', logoUrl);
-    console.log('loadUserInfo - staffRole:', staffRole);
-    console.log('loadUserInfo - department:', department);
+    console.log('📋 loadUserInfo - Full Debug:', {
+      organizationName,
+      organizationType,
+      organizationId,
+      logoUrl,
+      staffRole,
+      department,
+      userId,
+      educationalInstitutionSubcategory,
+      realEstateBusinessSubcategory,
+    });
 
-    if (!userRoleStr || !email) {
+    if (!userRoleStr || !email || !userId) {
       return null;
     }
 
@@ -231,7 +269,7 @@ export function loadUserInfo(): UserInfo | null {
                     userRole === UserRoleType.InstitutionAdministrator;
 
     if (isAdmin && (staffRole || department)) {
-      console.warn('Administrator should not have staff_role or department. Clearing these fields.');
+      console.warn('⚠️ Administrator should not have staff_role or department. Clearing these fields.');
       localStorage.removeItem('staff_role');
       localStorage.removeItem('department');
       staffRole = null;
@@ -246,10 +284,12 @@ export function loadUserInfo(): UserInfo | null {
     return {
       username: username || email,
       email,
+      userId,
       userRole,
       accountType,
       organizationType: organizationType || undefined,
       organizationName: organizationName || undefined,
+      organizationId: organizationId || undefined,
       roles,
       permissions,
       profilePicUrl: profilePicUrl || undefined,
@@ -257,6 +297,8 @@ export function loadUserInfo(): UserInfo | null {
       taxId: taxId || undefined,
       staffRole: staffRole || undefined,
       department: department || undefined,
+      educationalInstitutionSubcategory: educationalInstitutionSubcategory || undefined,
+      realEstateBusinessSubcategory: realEstateBusinessSubcategory || undefined,
     };
   } catch (error) {
     console.error('Failed to load user info:', error);
@@ -294,4 +336,91 @@ export function isSecurityDepartmentManager(userInfo: UserInfo): boolean {
  */
 export function canManageGates(userInfo: UserInfo): boolean {
   return isAdministrator(userInfo.userRole) || isSecurityDepartmentManager(userInfo);
+}
+
+/**
+ * Check if institution is a Primary or Secondary school
+ * These institutions need grade levels and class sections
+ */
+export function isPrimaryOrSecondarySchool(userInfo: UserInfo): boolean {
+  if (!userInfo.educationalInstitutionSubcategory) return false;
+  const subcategory = userInfo.educationalInstitutionSubcategory.toLowerCase();
+  return subcategory === 'primaryschool' || subcategory === 'secondaryschool';
+}
+
+/**
+ * Check if institution is a University or College
+ * These institutions need programme/course instead of grade/class
+ */
+export function isUniversityOrCollege(userInfo: UserInfo): boolean {
+  if (!userInfo.educationalInstitutionSubcategory) return false;
+  const subcategory = userInfo.educationalInstitutionSubcategory.toLowerCase();
+  return subcategory === 'university' || subcategory === 'college';
+}
+
+/**
+ * Check if institution is Vocational School
+ * Hybrid approach with optional guardian management based on age
+ */
+export function isVocationalSchool(userInfo: UserInfo): boolean {
+  if (!userInfo.educationalInstitutionSubcategory) return false;
+  return userInfo.educationalInstitutionSubcategory.toLowerCase() === 'vocationalschool';
+}
+
+/**
+ * Check if business is Real Estate type
+ * These businesses should see property management features
+ */
+export function isRealEstateBusiness(userInfo: UserInfo): boolean {
+  if (!userInfo.realEstateBusinessSubcategory) return false;
+  return true; // Any real estate subcategory means it's a real estate business
+}
+
+/**
+ * Check if business is Residential Real Estate
+ */
+export function isResidentialRealEstate(userInfo: UserInfo): boolean {
+  if (!userInfo.realEstateBusinessSubcategory) return false;
+  return userInfo.realEstateBusinessSubcategory.toLowerCase() === 'residentialrealestate';
+}
+
+/**
+ * Check if business is Commercial Real Estate
+ */
+export function isCommercialRealEstate(userInfo: UserInfo): boolean {
+  if (!userInfo.realEstateBusinessSubcategory) return false;
+  return userInfo.realEstateBusinessSubcategory.toLowerCase() === 'commercialrealestate';
+}
+
+/**
+ * Get appropriate field labels based on institution type
+ */
+export function getStudentFieldLabels(userInfo: UserInfo): {
+  gradeLevelLabel: string;
+  classSectionLabel: string;
+  shouldShowGradeLevel: boolean;
+  shouldShowClassSection: boolean;
+} {
+  if (isUniversityOrCollege(userInfo)) {
+    return {
+      gradeLevelLabel: 'Programme/Course',
+      classSectionLabel: 'Year of Study',
+      shouldShowGradeLevel: true,
+      shouldShowClassSection: true,
+    };
+  } else if (isPrimaryOrSecondarySchool(userInfo)) {
+    return {
+      gradeLevelLabel: 'Grade Level',
+      classSectionLabel: 'Class Section',
+      shouldShowGradeLevel: true,
+      shouldShowClassSection: true,
+    };
+  } else {
+    return {
+      gradeLevelLabel: 'Level',
+      classSectionLabel: 'Section/Group',
+      shouldShowGradeLevel: true,
+      shouldShowClassSection: true,
+    };
+  }
 }

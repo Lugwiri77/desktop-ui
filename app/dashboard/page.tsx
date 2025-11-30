@@ -13,16 +13,32 @@ import {
   UserInfo,
   AccountType,
 } from '@/lib/roles';
+import { createLayoutUserInfo } from '@/lib/layout-utils';
 import { ApplicationLayout } from '../components/application-layout';
 import { Heading } from '../components/heading';
 import { Text } from '../components/text';
 import { Badge } from '../components/badge';
 import { SearchButton } from '../components/search-button';
+import { graphql } from '@/lib/graphql';
+
+interface InstitutionStatistics {
+  totalStudents: number;
+  studentsCheckedIn: number;
+  pendingApprovals: number;
+  todaysActivities: number;
+}
 
 export default function DashboardPage() {
   const router = useRouter();
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
+  const [statistics, setStatistics] = useState<InstitutionStatistics>({
+    totalStudents: 0,
+    studentsCheckedIn: 0,
+    pendingApprovals: 0,
+    todaysActivities: 0,
+  });
+  const [loadingStats, setLoadingStats] = useState(false);
 
   useEffect(() => {
     // Check if user is authenticated
@@ -55,6 +71,44 @@ export default function DashboardPage() {
     setUserInfo(info);
   }, [router]);
 
+  // Load statistics for educational institutions
+  useEffect(() => {
+    const loadStatistics = async () => {
+      if (!userInfo || !userInfo.institutionId || userInfo.organizationType !== 'EducationalInstitution') {
+        return;
+      }
+
+      setLoadingStats(true);
+      try {
+        const query = `
+          query GetInstitutionStatistics($institutionId: String!) {
+            getInstitutionStatistics(institutionId: $institutionId) {
+              totalStudents
+              studentsCheckedIn
+              pendingApprovals
+              todaysActivities
+            }
+          }
+        `;
+
+        const result = await graphql<{ getInstitutionStatistics: InstitutionStatistics }>(query, {
+          institutionId: userInfo.institutionId,
+        });
+
+        if (result.getInstitutionStatistics) {
+          setStatistics(result.getInstitutionStatistics);
+        }
+      } catch (error) {
+        console.error('Error loading statistics:', error);
+        // Keep default zero values on error
+      } finally {
+        setLoadingStats(false);
+      }
+    };
+
+    loadStatistics();
+  }, [userInfo]);
+
   const handleLogout = async () => {
     setLoggingOut(true);
     try {
@@ -82,18 +136,14 @@ export default function DashboardPage() {
   const roleDisplayName = getUserRoleDisplayName(userInfo.userRole);
   const accountTypeDisplay = getAccountTypeDisplayName(userInfo.accountType);
 
-  const layoutUserInfo = {
-    username: userInfo.username,
-    email: userInfo.email,
-    profilePicUrl: userInfo.profilePicUrl,
-    logoUrl: userInfo.logoUrl,
-    organizationName: userInfo.organizationName,
-    accountType: userInfo.accountType,
-    organizationType: userInfo.organizationType,
-    isAdministrator: isAdmin,
-    staffRole: userInfo.staffRole,
-    department: userInfo.department,
-  };
+  // Create layout user info with all required fields including subcategories
+  const layoutUserInfo = createLayoutUserInfo(userInfo);
+
+  // Get institution subcategory for educational institutions
+  const educationalSubcategory = localStorage.getItem('educational_institution_subcategory') || '';
+  const isEducationalInstitution = userInfo.organizationType === 'EducationalInstitution';
+  const isUniversity = educationalSubcategory === 'University' || educationalSubcategory === 'College';
+  const isPrimarySecondary = ['PrimarySchool', 'SecondarySchool', 'LanguageSchool'].includes(educationalSubcategory);
 
   return (
     <ApplicationLayout
@@ -106,61 +156,120 @@ export default function DashboardPage() {
         {/* Administrator View */}
         {isAdmin && (
           <div className="space-y-6">
-            {/* Stats Cards - Full Access for Administrators */}
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <div className="rounded-lg bg-white p-6 shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
-                <Text className="text-sm text-zinc-500 dark:text-zinc-400">Total Staff</Text>
-                <div className="mt-2 flex items-baseline gap-2">
-                  <span className="text-3xl font-semibold text-zinc-950 dark:text-white">0</span>
-                  <Badge color="blue">New</Badge>
+            {/* Stats Cards - Educational Institutions */}
+            {isEducationalInstitution ? (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="rounded-lg bg-blue-600 p-6 text-white shadow-sm">
+                  <Text className="text-sm text-blue-100">Total Students</Text>
+                  <div className="mt-2">
+                    <span className="text-4xl font-bold">
+                      {loadingStats ? '...' : statistics.totalStudents}
+                    </span>
+                  </div>
+                  <Text className="mt-1 text-xs text-blue-100">Registered students</Text>
                 </div>
-                <Text className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Registered users</Text>
-              </div>
 
-              <div className="rounded-lg bg-white p-6 shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
-                <Text className="text-sm text-zinc-500 dark:text-zinc-400">Active Sessions</Text>
-                <div className="mt-2 flex items-baseline gap-2">
-                  <span className="text-3xl font-semibold text-zinc-950 dark:text-white">0</span>
-                  <Badge color="green">Live</Badge>
+                <div className="rounded-lg bg-green-600 p-6 text-white shadow-sm">
+                  <Text className="text-sm text-green-100">Active Today</Text>
+                  <div className="mt-2">
+                    <span className="text-4xl font-bold">
+                      {loadingStats ? '...' : statistics.studentsCheckedIn}
+                    </span>
+                  </div>
+                  <Text className="mt-1 text-xs text-green-100">Checked in students</Text>
                 </div>
-                <Text className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Currently online</Text>
-              </div>
 
-              <div className="rounded-lg bg-white p-6 shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
-                <Text className="text-sm text-zinc-500 dark:text-zinc-400">Departments</Text>
-                <div className="mt-2">
-                  <span className="text-3xl font-semibold text-zinc-950 dark:text-white">0</span>
+                <div className="rounded-lg bg-yellow-600 p-6 text-white shadow-sm">
+                  <Text className="text-sm text-yellow-100">Pending Approvals</Text>
+                  <div className="mt-2">
+                    <span className="text-4xl font-bold">
+                      {loadingStats ? '...' : statistics.pendingApprovals}
+                    </span>
+                  </div>
+                  <Text className="mt-1 text-xs text-yellow-100">
+                    {isPrimarySecondary ? 'Pickup requests' : 'Student approvals'}
+                  </Text>
                 </div>
-                <Text className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Organization units</Text>
-              </div>
 
-              <div className="rounded-lg bg-white p-6 shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
-                <Text className="text-sm text-zinc-500 dark:text-zinc-400">Total Revenue</Text>
-                <div className="mt-2">
-                  <span className="text-3xl font-semibold text-zinc-950 dark:text-white">$0</span>
+                <div className="rounded-lg bg-purple-600 p-6 text-white shadow-sm">
+                  <Text className="text-sm text-purple-100">Today's Activities</Text>
+                  <div className="mt-2">
+                    <span className="text-4xl font-bold">
+                      {loadingStats ? '...' : statistics.todaysActivities}
+                    </span>
+                  </div>
+                  <Text className="mt-1 text-xs text-purple-100">Check-ins/check-outs</Text>
                 </div>
-                <Text className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Financial overview</Text>
               </div>
-            </div>
+            ) : (
+              /* Generic Stats for Non-Educational Institutions */
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <div className="rounded-lg bg-white p-6 shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+                  <Text className="text-sm text-zinc-500 dark:text-zinc-400">Total Staff</Text>
+                  <div className="mt-2 flex items-baseline gap-2">
+                    <span className="text-3xl font-semibold text-zinc-950 dark:text-white">0</span>
+                    <Badge color="blue">New</Badge>
+                  </div>
+                  <Text className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Registered users</Text>
+                </div>
 
-            {/* Quick Actions */}
-            <div className="rounded-lg bg-white p-6 shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
-              <Heading level={2} className="mb-4">Quick Actions</Heading>
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <button className="rounded-lg border border-zinc-200 p-4 text-left transition hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800/50">
-                  <div className="font-semibold text-zinc-950 dark:text-white">Register Staff</div>
-                  <Text className="mt-1 text-sm">Add new staff members</Text>
-                </button>
-                <button className="rounded-lg border border-zinc-200 p-4 text-left transition hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800/50">
-                  <div className="font-semibold text-zinc-950 dark:text-white">Manage Roles</div>
-                  <Text className="mt-1 text-sm">Assign roles and permissions</Text>
-                </button>
-                <button className="rounded-lg border border-zinc-200 p-4 text-left transition hover:bg-zinc-50 dark:border-zinc-800 dark:hover:bg-zinc-800/50">
-                  <div className="font-semibold text-zinc-950 dark:text-white">View Reports</div>
-                  <Text className="mt-1 text-sm">Access analytics and reports</Text>
-                </button>
+                <div className="rounded-lg bg-white p-6 shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+                  <Text className="text-sm text-zinc-500 dark:text-zinc-400">Active Sessions</Text>
+                  <div className="mt-2 flex items-baseline gap-2">
+                    <span className="text-3xl font-semibold text-zinc-950 dark:text-white">0</span>
+                    <Badge color="green">Live</Badge>
+                  </div>
+                  <Text className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Currently online</Text>
+                </div>
+
+                <div className="rounded-lg bg-white p-6 shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+                  <Text className="text-sm text-zinc-500 dark:text-zinc-400">Departments</Text>
+                  <div className="mt-2">
+                    <span className="text-3xl font-semibold text-zinc-950 dark:text-white">0</span>
+                  </div>
+                  <Text className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Organization units</Text>
+                </div>
+
+                <div className="rounded-lg bg-white p-6 shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
+                  <Text className="text-sm text-zinc-500 dark:text-zinc-400">Total Revenue</Text>
+                  <div className="mt-2">
+                    <span className="text-3xl font-semibold text-zinc-950 dark:text-white">$0</span>
+                  </div>
+                  <Text className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">Financial overview</Text>
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Educational Institution Type Notice */}
+            {isEducationalInstitution && educationalSubcategory && (
+              <div className="rounded-lg bg-blue-50 p-6 ring-1 ring-blue-200 dark:bg-blue-950/10 dark:ring-blue-900">
+                <div className="flex items-start gap-3">
+                  <svg
+                    className="size-6 flex-shrink-0 text-blue-600 dark:text-blue-400"
+                    fill="currentColor"
+                    viewBox="0 0 20 20"
+                  >
+                    <path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3zM3.31 9.397L5 10.12v4.102a8.969 8.969 0 00-1.05-.174 1 1 0 01-.89-.89 11.115 11.115 0 01.25-3.762zM9.3 16.573A9.026 9.026 0 007 14.935v-3.957l1.818.78a3 3 0 002.364 0l5.508-2.361a11.026 11.026 0 01.25 3.762 1 1 0 01-.89.89 8.968 8.968 0 00-5.35 2.524 1 1 0 01-1.4 0zM6 18a1 1 0 001-1v-2.065a8.935 8.935 0 00-2-.712V17a1 1 0 001 1z" />
+                  </svg>
+                  <div>
+                    <Text className="font-semibold text-blue-900 dark:text-blue-100">
+                      {educationalSubcategory === 'PrimarySchool' && 'Primary School Features Active'}
+                      {educationalSubcategory === 'SecondarySchool' && 'Secondary School Features Active'}
+                      {(educationalSubcategory === 'University' || educationalSubcategory === 'College') && 'University/College Features Active'}
+                      {educationalSubcategory === 'VocationalSchool' && 'Vocational School Features Active'}
+                      {educationalSubcategory === 'SpecialEducation' && 'Special Education Features Active'}
+                      {educationalSubcategory === 'OnlineLearningPlatform' && 'Online Learning Features Active'}
+                    </Text>
+                    <Text className="mt-1 text-sm text-blue-800 dark:text-blue-200">
+                      {isUniversity
+                        ? 'Students register with Next of Kin (emergency contact only). No pickup/dropoff system.'
+                        : 'Students register with Guardians who receive app access via email matching. Pickup/dropoff approval system enabled.'}
+                    </Text>
+                  </div>
+                </div>
+              </div>
+            )}
+
           </div>
         )}
 

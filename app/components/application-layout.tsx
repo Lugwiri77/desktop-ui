@@ -39,6 +39,7 @@ import {
   ChartBarIcon,
   BriefcaseIcon,
   BuildingOfficeIcon,
+  BuildingOffice2Icon,
   UserGroupIcon,
   QuestionMarkCircleIcon,
   BookOpenIcon,
@@ -48,6 +49,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { Logo } from './logo'
 import { SearchButton } from './search-button'
 import { Badge } from './badge'
+import { isEducationInstitution, isRealEstateBusiness, AccountType, UserInfo } from '@/lib/roles'
 
 interface ApplicationLayoutProps {
   children: React.ReactNode
@@ -62,6 +64,8 @@ interface ApplicationLayoutProps {
     isAdministrator: boolean
     staffRole?: string
     department?: string
+    educationalInstitutionSubcategory?: string
+    realEstateBusinessSubcategory?: string
   }
   onLogout: () => void
   roleDisplayName?: string
@@ -172,6 +176,32 @@ export function ApplicationLayout({ children, userInfo, onLogout, roleDisplayNam
                 <UserGroupIcon />
                 <SidebarLabel>Visitor Management</SidebarLabel>
               </SidebarItem>
+
+              {/* Real Estate Visitor Approvals - ONLY for real estate organizations */}
+              {userInfo.realEstateBusinessSubcategory && (
+                <SidebarItem href="/dashboard/real-estate/visitors" current={pathname?.startsWith('/dashboard/real-estate/visitors')}>
+                  <BuildingOffice2Icon />
+                  <SidebarLabel>Tenant Approvals</SidebarLabel>
+                </SidebarItem>
+              )}
+
+              {/* Student Management for Education - for administrators at educational institutions */}
+              {isEducationInstitution(userInfo.accountType as AccountType, userInfo.organizationType) &&
+               userInfo.isAdministrator && (
+                <SidebarItem href="/student-management" current={pathname?.startsWith('/student-management')}>
+                  <UsersIcon />
+                  <SidebarLabel>Student Management</SidebarLabel>
+                </SidebarItem>
+              )}
+
+              {/* Security Gate for Education - for security staff at educational institutions */}
+              {isEducationInstitution(userInfo.accountType as AccountType, userInfo.organizationType) &&
+               (userInfo.staffRole === 'Security' || userInfo.department === 'Security') && (
+                <SidebarItem href="/education/security-gate" current={pathname?.startsWith('/education/security-gate')}>
+                  <ShieldCheckIcon />
+                  <SidebarLabel>Student Check-in</SidebarLabel>
+                </SidebarItem>
+              )}
 
               {userInfo.isAdministrator && (
                 <>

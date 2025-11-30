@@ -31,6 +31,8 @@ interface AuthResponse {
   tax_identification_number?: string;
   staff_role?: string;
   department?: string;
+  educational_institution_subcategory?: string;
+  real_estate_business_subcategory?: string;
 }
 
 export default function LoginScreen() {
@@ -121,6 +123,14 @@ export default function LoginScreen() {
         // Store user role and organization data
         localStorage.setItem('user_role', JSON.stringify(response.user_role));
 
+        if (response.user_id) {
+          localStorage.setItem('user_id', response.user_id);
+        }
+
+        if (response.organization_id) {
+          localStorage.setItem('organization_id', response.organization_id);
+        }
+
         if (response.organization_type) {
           localStorage.setItem('organization_type', response.organization_type);
         }
@@ -133,11 +143,31 @@ export default function LoginScreen() {
         if (response.staff_role) {
           localStorage.setItem('staff_role', response.staff_role);
           console.log('Stored staff_role in localStorage:', response.staff_role);
+        } else {
+          localStorage.removeItem('staff_role');
         }
 
         if (response.department) {
           localStorage.setItem('department', response.department);
           console.log('Stored department in localStorage:', response.department);
+        } else {
+          localStorage.removeItem('department');
+        }
+
+        // Store subcategories for granular type checking
+        // IMPORTANT: Clear both subcategories first to prevent cross-contamination
+        localStorage.removeItem('educational_institution_subcategory');
+        localStorage.removeItem('real_estate_business_subcategory');
+
+        // Then set only the relevant subcategory for this account
+        if (response.educational_institution_subcategory) {
+          localStorage.setItem('educational_institution_subcategory', response.educational_institution_subcategory);
+          console.log('Stored educational_institution_subcategory:', response.educational_institution_subcategory);
+        }
+
+        if (response.real_estate_business_subcategory) {
+          localStorage.setItem('real_estate_business_subcategory', response.real_estate_business_subcategory);
+          console.log('Stored real_estate_business_subcategory:', response.real_estate_business_subcategory);
         }
 
         // Navigate based on user role

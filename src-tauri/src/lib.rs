@@ -48,8 +48,10 @@ struct AuthResponse {
     token: Option<String>,
     refresh_token: Option<String>,
     message: String,
+    user_id: Option<String>,
     username: Option<String>,
     email: Option<String>,
+    organization_id: Option<String>,
     profile_pic_url: Option<String>,
     logo_url: Option<String>,
     organization_name: Option<String>,
@@ -58,6 +60,8 @@ struct AuthResponse {
     tax_identification_number: Option<String>,
     staff_role: Option<String>,
     department: Option<String>,
+    educational_institution_subcategory: Option<String>,
+    real_estate_business_subcategory: Option<String>,
 }
 
 // Tauri command to authenticate user with Kastaem backend
@@ -117,6 +121,14 @@ async fn authenticate_user(email: String, password: String) -> Result<AuthRespon
                     .and_then(|v| v.as_str())
                     .map(|s| s.to_string());
 
+                let user_id = json_value.get("user_id")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+
+                let organization_id = json_value.get("organization_id")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+
                 let message = json_value.get("message")
                     .and_then(|v| v.as_str())
                     .unwrap_or("Login successful")
@@ -152,6 +164,14 @@ async fn authenticate_user(email: String, password: String) -> Result<AuthRespon
                     .and_then(|v| v.as_str())
                     .map(|s| s.to_string());
 
+                let educational_institution_subcategory = json_value.get("educational_institution_subcategory")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+
+                let real_estate_business_subcategory = json_value.get("real_estate_business_subcategory")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string());
+
                 // Check if we got valid tokens
                 if access_token.is_empty() {
                     return Err("No access token in response".to_string());
@@ -162,8 +182,10 @@ async fn authenticate_user(email: String, password: String) -> Result<AuthRespon
                     token: Some(access_token),
                     refresh_token: Some(refresh_token),
                     message,
+                    user_id,
                     username,
                     email,
+                    organization_id,
                     profile_pic_url,
                     logo_url,
                     organization_name,
@@ -172,6 +194,8 @@ async fn authenticate_user(email: String, password: String) -> Result<AuthRespon
                     tax_identification_number,
                     staff_role,
                     department,
+                    educational_institution_subcategory,
+                    real_estate_business_subcategory,
                 })
             } else {
                 let status = response.status();

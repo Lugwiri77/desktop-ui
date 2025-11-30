@@ -16,8 +16,17 @@ import {
   loadUserInfo,
   isAdministrator,
   getUserRoleDisplayName,
+  isEducationInstitution,
   UserInfo,
 } from '@/lib/roles';
+import { createLayoutUserInfo } from '@/lib/layout-utils';
+import dynamic from 'next/dynamic';
+
+// Dynamically import InstitutionSettingsSection to avoid SSR issues with Material-UI
+const InstitutionSettingsSection = dynamic(
+  () => import('../components/institution/InstitutionSettingsSection'),
+  { ssr: false }
+);
 
 type DatabaseStrategy = 'kastaem_only' | 'own_db_only' | 'dual_db';
 
@@ -380,18 +389,8 @@ export default function SettingsPage() {
   const isAdmin = isAdministrator(userInfo.userRole);
   const roleDisplayName = getUserRoleDisplayName(userInfo.userRole);
 
-  const layoutUserInfo = {
-    username: userInfo.username,
-    email: userInfo.email,
-    profilePicUrl: userInfo.profilePicUrl,
-    logoUrl: userInfo.logoUrl,
-    organizationName: userInfo.organizationName,
-    accountType: userInfo.accountType,
-    organizationType: userInfo.organizationType,
-    isAdministrator: isAdmin,
-    staffRole: userInfo.staffRole,
-    department: userInfo.department,
-  };
+  // Create layout user info with all required fields including subcategories
+  const layoutUserInfo = createLayoutUserInfo(userInfo);
 
   const showDatabaseFields = databaseStrategy !== 'kastaem_only';
   const strategyChanged = databaseStrategy !== originalStrategy;
@@ -955,6 +954,26 @@ export default function SettingsPage() {
             </form>
           )}
         </div>
+
+        {/* Institution Settings - Only for Educational Institution Administrators */}
+        {(() => {
+          const isEducation = isEducationInstitution(userInfo.accountType, userInfo.organizationType);
+          console.log('🎓 Education Institution Check:', {
+            accountType: userInfo.accountType,
+            organizationType: userInfo.organizationType,
+            isEducation,
+            userRole: userInfo.userRole,
+          });
+          return isEducation;
+        })() && (
+          <div className="mt-8">
+            <InstitutionSettingsSection
+              institutionId={userInfo.organizationId || ''}
+              organizationType={userInfo.organizationType}
+              educationalInstitutionSubcategory={userInfo.educationalInstitutionSubcategory}
+            />
+          </div>
+        )}
       </div>
     </ApplicationLayout>
   );
