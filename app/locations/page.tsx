@@ -390,7 +390,7 @@ export default function LocationsPage() {
 
   return (
     <ApplicationLayout
-      userInfo={layoutUserInfo}
+      userInfo={createLayoutUserInfo(userInfo)}
       onLogout={handleLogout}
       roleDisplayName={roleDisplayName}
       isAdmin={isAdmin}

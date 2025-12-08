@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useOfflineMutation } from '@/lib/hooks/useOfflineMutation';
 import {
   AlertTriangle,
   Shield,
@@ -53,14 +54,29 @@ export default function SecurityIncidentsPage() {
     refetchInterval: 30000,
   });
 
-  // Resolve incident mutation
-  const resolveMutation = useMutation({
-    mutationFn: resolveSecurityIncident,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['securityIncidents'] });
-      setResolveModal({ incident: null, isOpen: false });
-    },
-  });
+  // Resolve incident mutation (offline-aware)
+  const resolveMutation = useOfflineMutation(
+    resolveSecurityIncident,
+    {
+      module: 'visitor',
+      operation: 'resolveSecurityIncident',
+      priority: 'high', // High priority - critical security operation
+      invalidateKeys: ['securityIncidents'],
+      successMessage: 'Security incident resolved successfully',
+      onSuccess: () => {
+        setResolveModal({ incident: null, isOpen: false });
+      },
+      optimisticUpdate: {
+        queryKey: ['securityIncidents', severityFilter, statusFilter],
+        updater: (oldData, variables) =>
+          oldData.map((incident: SecurityIncident) =>
+            incident.id === variables.incidentId
+              ? { ...incident, status: 'resolved', resolutionNotes: variables.resolutionNotes, resolvedAt: new Date().toISOString() }
+              : incident
+          ),
+      },
+    }
+  );
 
   // Filter incidents by search
   const filteredIncidents = useMemo(() => {

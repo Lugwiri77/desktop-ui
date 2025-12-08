@@ -8,6 +8,7 @@ import { Text } from '@/app/components/text';
 import { Divider } from '@/app/components/divider';
 import { Button } from '@/app/components/button';
 import { isAuthenticated, loadUserInfo, getUserRoleDisplayName, isAdministrator, UserInfo } from '@/lib/roles';
+import { createLayoutUserInfo } from '@/lib/layout-utils';
 import { ArrowLeftIcon, CheckCircleIcon, ExclamationTriangleIcon } from '@heroicons/react/20/solid';
 
 export default function RolesPermissionsGuidePage() {
@@ -67,7 +68,7 @@ export default function RolesPermissionsGuidePage() {
 
   return (
     <ApplicationLayout
-      userInfo={layoutUserInfo}
+      userInfo={createLayoutUserInfo(userInfo)}
       onLogout={handleLogout}
       roleDisplayName={roleDisplayName}
       isAdmin={isAdmin}

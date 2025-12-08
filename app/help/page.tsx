@@ -7,6 +7,7 @@ import { Heading } from '@/app/components/heading';
 import { Text } from '@/app/components/text';
 import { Divider } from '@/app/components/divider';
 import { isAuthenticated, loadUserInfo, getUserRoleDisplayName, isAdministrator, UserInfo } from '@/lib/roles';
+import { createLayoutUserInfo } from '@/lib/layout-utils';
 import {
   AcademicCapIcon,
   BookOpenIcon,
@@ -108,7 +109,7 @@ export default function HelpDocumentationPage() {
 
   return (
     <ApplicationLayout
-      userInfo={layoutUserInfo}
+      userInfo={createLayoutUserInfo(userInfo)}
       onLogout={handleLogout}
       roleDisplayName={roleDisplayName}
       isAdmin={isAdmin}

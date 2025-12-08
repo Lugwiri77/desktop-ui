@@ -51,13 +51,17 @@ const createQueryClientInstance = () => new QueryClient({
       // Show stale data while fetching fresh data in background
       staleTime: 5 * 60 * 1000, // 5 minutes
 
-      // Network mode - 'online' means queries won't run if offline
-      networkMode: 'online',
+      // OFFLINE-FIRST MODE: Queries can return cached data even when offline
+      // This allows read operations to work seamlessly without network
+      networkMode: 'offlineFirst',
     },
     mutations: {
       // Retry mutations once on failure
       retry: 1,
-      networkMode: 'online',
+
+      // OFFLINE-FIRST MODE: Mutations will be queued when offline
+      // The offline queue system will handle retry when connection is restored
+      networkMode: 'offlineFirst',
     },
   },
 })

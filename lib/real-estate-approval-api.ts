@@ -17,26 +17,143 @@ export type ApprovalMethod =
   | 'sms'
   | 'phone_call';
 
+// Backend response structure (matches GraphQL schema)
+export interface TenantApprovalRequestBackend {
+  id: string;
+  visitorFullName: string;
+  visitorPhone: string;
+  purposeOfVisit?: string;
+  approvalStatus: ApprovalStatus;
+  approvedAt?: string;
+  rejectedAt?: string;
+  otpExpiresAt: string;
+  visitorLogId?: string;
+  tenantId: string;
+}
+
+// UI-friendly interface with all fields
 export interface TenantApprovalRequest {
   id: string;
-  visitorName: string;
+  visitorFullName: string;
+  visitorName: string; // Alias for UI compatibility
   visitorPhone: string;
-  visitorIdNumber?: string;
+  purposeOfVisit?: string;
+  approvalStatus: ApprovalStatus;
+  otpCode?: string;
+  approvedAt?: string;
+  rejectedAt?: string;
+  otpExpiresAt: string;
+  expiresAt: string; // Alias for UI compatibility
+  visitorLogId?: string;
+  tenantId: string;
   unitNumber: string;
   tenantName: string;
   tenantPhone: string;
-  purposeOfVisit?: string;
-  approvalStatus: ApprovalStatus;
   approvalMethod: ApprovalMethod;
   requiresOtp: boolean;
-  otpCode?: string;
   requestedAt: string;
-  approvedAt?: string;
-  rejectedAt?: string;
-  expiresAt: string;
+  visitorIdNumber?: string;
   approvalNotes?: string;
   rejectionReason?: string;
-  visitorLogId?: string;
+}
+
+/**
+ * Transform backend response to UI-friendly format (synchronous, with placeholders)
+ * Note: Backend only provides tenantId. Tenant details (name, phone, unit)
+ * are shown as placeholders. Use transformApprovalRequestWithDetails for full data.
+ */
+function transformApprovalRequest(backend: TenantApprovalRequestBackend): TenantApprovalRequest {
+  // Backend doesn't provide tenant details, only tenantId
+  // These will need to be populated from a separate tenant lookup
+  const tenantName = `Tenant ${backend.tenantId.substring(0, 8)}...`; // Placeholder
+  const unitNumber = 'Loading...'; // Placeholder
+  const tenantPhone = ''; // Placeholder
+
+  // Default approval method for real estate (OTP via SMS)
+  const approvalMethod: ApprovalMethod = 'sms';
+
+  return {
+    id: backend.id,
+    visitorFullName: backend.visitorFullName,
+    visitorName: backend.visitorFullName, // Alias for UI compatibility
+    visitorPhone: backend.visitorPhone,
+    purposeOfVisit: backend.purposeOfVisit,
+    approvalStatus: backend.approvalStatus,
+    otpCode: undefined, // Backend doesn't expose OTP code for security
+    approvedAt: backend.approvedAt,
+    rejectedAt: backend.rejectedAt,
+    otpExpiresAt: backend.otpExpiresAt,
+    expiresAt: backend.otpExpiresAt, // Alias for UI compatibility
+    visitorLogId: backend.visitorLogId,
+    tenantId: backend.tenantId,
+    unitNumber,
+    tenantName,
+    tenantPhone,
+    approvalMethod,
+    requiresOtp: true, // Real estate approvals always require OTP
+    requestedAt: backend.approvedAt || backend.rejectedAt || new Date().toISOString(), // Fallback
+    visitorIdNumber: undefined, // Backend doesn't provide this
+    approvalNotes: undefined, // Backend doesn't provide this
+    rejectionReason: undefined, // Backend doesn't provide this
+  };
+}
+
+/**
+ * Transform backend response with full tenant and unit details (asynchronous)
+ * Fetches tenant and unit information from the real estate API
+ */
+async function transformApprovalRequestWithDetails(backend: TenantApprovalRequestBackend): Promise<TenantApprovalRequest> {
+  let tenantName = 'Unknown Tenant';
+  let unitNumber = 'N/A';
+  let tenantPhone = '';
+
+  try {
+    // Import getTenant and getUnit functions
+    const { getTenant } = await import('./real-estate-api');
+
+    // Fetch tenant details
+    const tenant = await getTenant(backend.tenantId);
+    tenantName = `${tenant.firstName} ${tenant.lastName}`.trim();
+    tenantPhone = tenant.phoneNumber;
+
+    // Fetch unit details if tenant has unitId
+    if (tenant.unitId) {
+      const { getUnit } = await import('./real-estate-api');
+      const unit = await getUnit(tenant.unitId);
+      unitNumber = unit.unitNumber;
+    }
+  } catch (error) {
+    console.error('Failed to fetch tenant/unit details:', error);
+    // Fall back to placeholder data if fetching fails
+  }
+
+  // Default approval method for real estate (OTP via SMS)
+  const approvalMethod: ApprovalMethod = 'sms';
+
+  return {
+    id: backend.id,
+    visitorFullName: backend.visitorFullName,
+    visitorName: backend.visitorFullName,
+    visitorPhone: backend.visitorPhone,
+    purposeOfVisit: backend.purposeOfVisit,
+    approvalStatus: backend.approvalStatus,
+    otpCode: undefined,
+    approvedAt: backend.approvedAt,
+    rejectedAt: backend.rejectedAt,
+    otpExpiresAt: backend.otpExpiresAt,
+    expiresAt: backend.otpExpiresAt,
+    visitorLogId: backend.visitorLogId,
+    tenantId: backend.tenantId,
+    unitNumber,
+    tenantName,
+    tenantPhone,
+    approvalMethod,
+    requiresOtp: true,
+    requestedAt: backend.approvedAt || backend.rejectedAt || new Date().toISOString(),
+    visitorIdNumber: undefined,
+    approvalNotes: undefined,
+    rejectionReason: undefined,
+  };
 }
 
 export interface TenantApprovalHistory {
@@ -77,33 +194,26 @@ export async function getTenantApprovalRequests(params?: {
         unitNumber: $unitNumber
       ) {
         id
-        visitorName
+        visitorFullName
         visitorPhone
-        visitorIdNumber
-        unitNumber
-        tenantName
-        tenantPhone
         purposeOfVisit
         approvalStatus
-        approvalMethod
-        requiresOtp
-        otpCode
-        requestedAt
         approvedAt
         rejectedAt
-        expiresAt
-        approvalNotes
-        rejectionReason
+        otpExpiresAt
         visitorLogId
+        tenantId
       }
     }
   `;
 
-  const data = await graphql<{ tenantApprovalRequests: TenantApprovalRequest[] }>(
+  const data = await graphql<{ tenantApprovalRequests: TenantApprovalRequestBackend[] }>(
     query,
     params
   );
-  return data.tenantApprovalRequests;
+
+  // Transform all approval requests with full tenant/unit details
+  return Promise.all(data.tenantApprovalRequests.map(transformApprovalRequestWithDetails));
 }
 
 /**
@@ -139,33 +249,24 @@ export async function getTenantApprovalRequest(approvalId: string): Promise<Tena
     query GetTenantApprovalRequest($approvalId: String!) {
       tenantApprovalRequest(approvalId: $approvalId) {
         id
-        visitorName
+        visitorFullName
         visitorPhone
-        visitorIdNumber
-        unitNumber
-        tenantName
-        tenantPhone
         purposeOfVisit
         approvalStatus
-        approvalMethod
-        requiresOtp
-        otpCode
-        requestedAt
         approvedAt
         rejectedAt
-        expiresAt
-        approvalNotes
-        rejectionReason
+        otpExpiresAt
         visitorLogId
+        tenantId
       }
     }
   `;
 
-  const data = await graphql<{ tenantApprovalRequest: TenantApprovalRequest | null }>(
+  const data = await graphql<{ tenantApprovalRequest: TenantApprovalRequestBackend | null }>(
     query,
     { approvalId }
   );
-  return data.tenantApprovalRequest;
+  return data.tenantApprovalRequest ? transformApprovalRequestWithDetails(data.tenantApprovalRequest) : null;
 }
 
 // ============================================================================
@@ -173,9 +274,8 @@ export async function getTenantApprovalRequest(approvalId: string): Promise<Tena
 // ============================================================================
 
 export interface RequestTenantApprovalInput {
-  visitorName: string;
+  visitorFullName: string; // Backend expects visitorFullName
   visitorPhone: string;
-  visitorIdNumber?: string;
   unitId: string;
   purposeOfVisit?: string;
   visitorLogId?: string;
@@ -377,16 +477,17 @@ export function isApprovalPending(request: TenantApprovalRequest): boolean {
     return false;
   }
 
-  const expiresAt = new Date(request.expiresAt);
+  const expiresAt = new Date(request.otpExpiresAt);
   const now = new Date();
   return expiresAt > now;
 }
 
 /**
  * Get time remaining until expiry
+ * @param otpExpiresAt - The OTP expiration timestamp
  */
-export function getTimeRemaining(expiresAt: string): string {
-  const expires = new Date(expiresAt);
+export function getTimeRemaining(otpExpiresAt: string): string {
+  const expires = new Date(otpExpiresAt);
   const now = new Date();
   const diff = expires.getTime() - now.getTime();
 

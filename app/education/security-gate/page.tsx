@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ApplicationLayout } from '../../components/application-layout';
 import { isAuthenticated, loadUserInfo, getUserRoleDisplayName, UserInfo } from '@/lib/roles';
+import { createLayoutUserInfo } from '@/lib/layout-utils';
 import StudentCheckIn from '../components/StudentCheckIn';
 
 export default function SecurityGatePage() {
@@ -68,7 +69,7 @@ export default function SecurityGatePage() {
 
   return (
     <ApplicationLayout
-      userInfo={layoutUserInfo}
+      userInfo={createLayoutUserInfo(userInfo)}
       onLogout={handleLogout}
       roleDisplayName={roleDisplayName}
       isAdmin={isAdmin}

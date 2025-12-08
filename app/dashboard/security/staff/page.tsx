@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useOfflineMutation } from '@/lib/hooks/useOfflineMutation';
 import {
   Shield,
   Users,
@@ -65,22 +66,46 @@ export default function SecurityStaffPage() {
     queryFn: getPendingStaffNominations,
   });
 
-  // Update staff mutation
-  const updateMutation = useMutation({
-    mutationFn: updateSecurityStaff,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['securityStaff'] });
-      setEditModal({ staff: null, isOpen: false });
-    },
-  });
+  // Update staff mutation (offline-aware)
+  const updateMutation = useOfflineMutation(
+    updateSecurityStaff,
+    {
+      module: 'visitor',
+      operation: 'updateSecurityStaff',
+      priority: 'normal', // Normal priority - standard update operation
+      invalidateKeys: ['securityStaff'],
+      successMessage: (data) => `${data.firstName} ${data.lastName} updated successfully`,
+      onSuccess: () => {
+        setEditModal({ staff: null, isOpen: false });
+      },
+      optimisticUpdate: {
+        queryKey: ['securityStaff', roleFilter, gateFilter, statusFilter],
+        updater: (oldData, variables) =>
+          oldData.map((s: SecurityStaff) =>
+            s.id === variables.id ? { ...s, ...variables } : s
+          ),
+      },
+    }
+  );
 
-  // Deactivate staff mutation
-  const deactivateMutation = useMutation({
-    mutationFn: deactivateSecurityStaff,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['securityStaff'] });
-    },
-  });
+  // Deactivate staff mutation (offline-aware)
+  const deactivateMutation = useOfflineMutation(
+    deactivateSecurityStaff,
+    {
+      module: 'visitor',
+      operation: 'deactivateSecurityStaff',
+      priority: 'high', // High priority - security access control
+      invalidateKeys: ['securityStaff'],
+      successMessage: 'Security staff deactivated successfully',
+      optimisticUpdate: {
+        queryKey: ['securityStaff', roleFilter, gateFilter, statusFilter],
+        updater: (oldData, variables) =>
+          oldData.map((s: SecurityStaff) =>
+            s.id === variables.staffId ? { ...s, status: 'inactive' } : s
+          ),
+      },
+    }
+  );
 
   // Filter staff based on search query
   const filteredStaff = useMemo(() => {

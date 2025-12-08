@@ -9,6 +9,7 @@ import { getStaffRBACRole, GranularPermissions } from '@/lib/graphql';
 import { getActiveVisitors, getVisitorStats } from '@/lib/visitor-management';
 import { isAuthenticated } from '@/lib/api';
 import { loadUserInfo, getUserRoleDisplayName, isAdministrator, UserInfo } from '@/lib/roles';
+import { createLayoutUserInfo } from '@/lib/layout-utils';
 import SecurityGate from './components/SecurityGate';
 import CustomerCareRouting from './components/CustomerCareRouting';
 import DepartmentService from './components/DepartmentService';
@@ -84,22 +85,9 @@ export default function VisitorsPage() {
   const isAdmin = isAdministrator(userInfo.userRole);
   const roleDisplayName = getUserRoleDisplayName(userInfo.userRole);
 
-  const layoutUserInfo = {
-    username: userInfo.username,
-    email: userInfo.email,
-    profilePicUrl: userInfo.profilePicUrl,
-    logoUrl: userInfo.logoUrl,
-    organizationName: userInfo.organizationName,
-    accountType: userInfo.accountType,
-    organizationType: userInfo.organizationType,
-    isAdministrator: isAdmin,
-    staffRole: userInfo.staffRole,
-    department: userInfo.department,
-  };
-
   return (
     <ApplicationLayout
-      userInfo={layoutUserInfo}
+      userInfo={createLayoutUserInfo(userInfo)}
       onLogout={handleLogout}
       roleDisplayName={roleDisplayName}
       isAdmin={isAdmin}

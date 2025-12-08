@@ -1,7 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useOfflineMutation } from '@/lib/hooks/useOfflineMutation';
 import {
   UserCheck,
   UserX,
@@ -49,33 +50,66 @@ export default function StaffApprovalPage() {
     refetchInterval: 30000, // Refetch every 30 seconds
   });
 
-  // Single approval mutation
-  const approveMutation = useMutation({
-    mutationFn: approveStaffNomination,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pendingStaffNominations'] });
-      setApprovalModal({ nomination: null, isOpen: false });
-    },
-  });
+  // Single approval mutation (offline-aware)
+  const approveMutation = useOfflineMutation(
+    approveStaffNomination,
+    {
+      module: 'visitor',
+      operation: 'approveStaffNomination',
+      priority: 'high', // High priority - security access approval
+      invalidateKeys: ['pendingStaffNominations', 'securityStaff'],
+      successMessage: (data) => `${data.firstName} ${data.lastName} approved successfully`,
+      onSuccess: () => {
+        setApprovalModal({ nomination: null, isOpen: false });
+      },
+      optimisticUpdate: {
+        queryKey: ['pendingStaffNominations'],
+        updater: (oldData, variables) =>
+          oldData.filter((n: SecurityStaffNomination) => n.id !== variables.nominationId),
+      },
+    }
+  );
 
-  // Rejection mutation
-  const rejectMutation = useMutation({
-    mutationFn: rejectStaffNomination,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pendingStaffNominations'] });
-      setRejectionModal({ nomination: null, isOpen: false });
-    },
-  });
+  // Rejection mutation (offline-aware)
+  const rejectMutation = useOfflineMutation(
+    rejectStaffNomination,
+    {
+      module: 'visitor',
+      operation: 'rejectStaffNomination',
+      priority: 'high', // High priority - security access rejection
+      invalidateKeys: ['pendingStaffNominations'],
+      successMessage: 'Staff nomination rejected',
+      onSuccess: () => {
+        setRejectionModal({ nomination: null, isOpen: false });
+      },
+      optimisticUpdate: {
+        queryKey: ['pendingStaffNominations'],
+        updater: (oldData, variables) =>
+          oldData.filter((n: SecurityStaffNomination) => n.id !== variables.nominationId),
+      },
+    }
+  );
 
-  // Bulk approval mutation
-  const bulkApproveMutation = useMutation({
-    mutationFn: bulkApproveNominations,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['pendingStaffNominations'] });
-      setSelectedNominations(new Set());
-      setBulkApprovalModal(false);
-    },
-  });
+  // Bulk approval mutation (offline-aware)
+  const bulkApproveMutation = useOfflineMutation(
+    bulkApproveNominations,
+    {
+      module: 'visitor',
+      operation: 'bulkApproveNominations',
+      priority: 'low', // Low priority - bulk operation
+      invalidateKeys: ['pendingStaffNominations', 'securityStaff'],
+      successMessage: (data) => `${data.approvedCount} nominations approved successfully`,
+      onSuccess: () => {
+        setSelectedNominations(new Set());
+        setBulkApprovalModal(false);
+      },
+      optimisticUpdate: {
+        queryKey: ['pendingStaffNominations'],
+        updater: (oldData, variables) =>
+          oldData.filter((n: SecurityStaffNomination) => !variables.nominationIds.includes(n.id)),
+      },
+    }
+  );
 
   const handleSelectAll = (checked: boolean) => {
     if (checked) {

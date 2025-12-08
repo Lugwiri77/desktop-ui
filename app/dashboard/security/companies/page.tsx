@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useOfflineMutation } from '@/lib/hooks/useOfflineMutation';
 import {
   Building2,
   Users,
@@ -47,14 +48,29 @@ export default function SecurityCompaniesPage() {
     refetchInterval: 30000,
   });
 
-  // Update company mutation
-  const updateMutation = useMutation({
-    mutationFn: updateSecurityCompany,
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['securityCompanies'] });
-      setEditModal({ company: null, isOpen: false });
-    },
-  });
+  // Update company mutation (offline-aware)
+  const updateMutation = useOfflineMutation(
+    updateSecurityCompany,
+    {
+      module: 'visitor',
+      operation: 'updateSecurityCompany',
+      priority: 'normal', // Normal priority - standard update operation
+      invalidateKeys: ['securityCompanies'],
+      successMessage: (data) => `${data.companyName} updated successfully`,
+      onSuccess: () => {
+        setEditModal({ company: null, isOpen: false });
+      },
+      optimisticUpdate: {
+        queryKey: ['securityCompanies'],
+        updater: (oldData, variables) =>
+          oldData.map((company: SecurityCompany) =>
+            company.id === variables.id
+              ? { ...company, ...variables }
+              : company
+          ),
+      },
+    }
+  );
 
   // Filter companies
   const filteredCompanies = useMemo(() => {

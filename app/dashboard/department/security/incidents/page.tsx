@@ -17,9 +17,11 @@ import {
   getUserRoleDisplayName,
   UserInfo,
 } from '@/lib/roles';
+import { createLayoutUserInfo } from '@/lib/layout-utils';
 import { getIncidents, resolveIncident, type IncidentSeverity, type SecurityIncident } from '@/lib/security-queries-api';
 import { getDepartmentExternalStaff } from '@/lib/security-department-api';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useOfflineMutation } from '@/lib/hooks/useOfflineMutation';
 
 export default function IncidentsPage() {
   const router = useRouter();
@@ -56,13 +58,26 @@ export default function IncidentsPage() {
     refetchOnWindowFocus: true,
   });
 
-  const resolveMutation = useMutation({
-    mutationFn: ({ incidentId, resolutionNotes }: { incidentId: string; resolutionNotes: string }) =>
+  const resolveMutation = useOfflineMutation(
+    ({ incidentId, resolutionNotes }: { incidentId: string; resolutionNotes: string }) =>
       resolveIncident(incidentId, resolutionNotes),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['organizationIncidents'] });
-    },
-  });
+    {
+      module: 'visitor',
+      operation: 'resolveIncident',
+      priority: 'high', // High priority - critical security operation
+      invalidateKeys: ['organizationIncidents'],
+      successMessage: 'Security incident resolved successfully',
+      optimisticUpdate: {
+        queryKey: ['organizationIncidents', queryParams],
+        updater: (oldData, variables) =>
+          oldData.map((incident: SecurityIncident) =>
+            incident.id === variables.incidentId
+              ? { ...incident, resolved: true, resolutionNotes: variables.resolutionNotes, resolvedAt: new Date().toISOString() }
+              : incident
+          ),
+      },
+    }
+  );
 
   const error = queryError ? (queryError instanceof Error ? queryError.message : 'Failed to load incidents') : null;
 
@@ -188,7 +203,7 @@ export default function IncidentsPage() {
 
   return (
     <ApplicationLayout
-      userInfo={layoutUserInfo}
+      userInfo={createLayoutUserInfo(userInfo)}
       onLogout={handleLogout}
       roleDisplayName={roleDisplayName}
       isAdmin={isAdmin}

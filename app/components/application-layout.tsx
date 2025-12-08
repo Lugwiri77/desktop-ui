@@ -44,6 +44,12 @@ import {
   QuestionMarkCircleIcon,
   BookOpenIcon,
   AcademicCapIcon,
+  CalendarIcon,
+  NewspaperIcon,
+  SquaresPlusIcon,
+  KeyIcon,
+  ClipboardDocumentCheckIcon,
+  TruckIcon,
 } from '@heroicons/react/20/solid'
 import { useRouter, usePathname } from 'next/navigation'
 import { Logo } from './logo'
@@ -177,14 +183,6 @@ export function ApplicationLayout({ children, userInfo, onLogout, roleDisplayNam
                 <SidebarLabel>Visitor Management</SidebarLabel>
               </SidebarItem>
 
-              {/* Real Estate Visitor Approvals - ONLY for real estate organizations */}
-              {userInfo.realEstateBusinessSubcategory && (
-                <SidebarItem href="/dashboard/real-estate/visitors" current={pathname?.startsWith('/dashboard/real-estate/visitors')}>
-                  <BuildingOffice2Icon />
-                  <SidebarLabel>Tenant Approvals</SidebarLabel>
-                </SidebarItem>
-              )}
-
               {/* Student Management for Education - for administrators at educational institutions */}
               {isEducationInstitution(userInfo.accountType as AccountType, userInfo.organizationType) &&
                userInfo.isAdministrator && (
@@ -202,7 +200,97 @@ export function ApplicationLayout({ children, userInfo, onLogout, roleDisplayNam
                   <SidebarLabel>Student Check-in</SidebarLabel>
                 </SidebarItem>
               )}
+            </SidebarSection>
 
+            {/* Educational Features Submenu - for educational institutions */}
+            {isEducationInstitution(userInfo.accountType as AccountType, userInfo.organizationType) && (
+              <SidebarSection>
+                <SidebarHeading>Educational Features</SidebarHeading>
+
+                {/* Timetable - Primary/Secondary schools only, admin and managers can edit */}
+                {(userInfo.educationalInstitutionSubcategory === 'PrimarySchool' ||
+                  userInfo.educationalInstitutionSubcategory === 'SecondarySchool' ||
+                  userInfo.educationalInstitutionSubcategory === 'Primary' ||
+                  userInfo.educationalInstitutionSubcategory === 'Secondary') && (
+                  <SidebarItem href="/education/timetable" current={pathname?.startsWith('/education/timetable')}>
+                    <CalendarIcon />
+                    <SidebarLabel>Timetable</SidebarLabel>
+                  </SidebarItem>
+                )}
+
+                {/* Library - All educational institutions */}
+                <SidebarItem href="/education/library" current={pathname?.startsWith('/education/library')}>
+                  <BookOpenIcon />
+                  <SidebarLabel>Library</SidebarLabel>
+                </SidebarItem>
+
+                {/* Online Diary - Primary schools only */}
+                {(userInfo.educationalInstitutionSubcategory === 'PrimarySchool' ||
+                  userInfo.educationalInstitutionSubcategory === 'Primary') && (
+                  <SidebarItem href="/education/diary" current={pathname?.startsWith('/education/diary')}>
+                    <NewspaperIcon />
+                    <SidebarLabel>Online Diary</SidebarLabel>
+                  </SidebarItem>
+                )}
+              </SidebarSection>
+            )}
+
+            {/* Real Estate Management Submenu - for real estate businesses */}
+            {userInfo.realEstateBusinessSubcategory && (
+              <SidebarSection>
+                <SidebarHeading>Real Estate Management</SidebarHeading>
+
+                {/* Properties - Administrators only */}
+                {userInfo.isAdministrator && (
+                  <SidebarItem href="/dashboard/real-estate/properties" current={pathname?.startsWith('/dashboard/real-estate/properties')}>
+                    <BuildingOffice2Icon />
+                    <SidebarLabel>Properties</SidebarLabel>
+                  </SidebarItem>
+                )}
+
+                {/* Units - Administrators only */}
+                {userInfo.isAdministrator && (
+                  <SidebarItem href="/dashboard/real-estate/units" current={pathname?.startsWith('/dashboard/real-estate/units')}>
+                    <SquaresPlusIcon />
+                    <SidebarLabel>Units</SidebarLabel>
+                  </SidebarItem>
+                )}
+
+                {/* Tenants - Administrators only */}
+                {userInfo.isAdministrator && (
+                  <SidebarItem href="/dashboard/real-estate/tenants" current={pathname?.startsWith('/dashboard/real-estate/tenants')}>
+                    <KeyIcon />
+                    <SidebarLabel>Tenants</SidebarLabel>
+                  </SidebarItem>
+                )}
+
+                {/* Pre-Registrations - Administrators and Security */}
+                {(userInfo.isAdministrator || userInfo.staffRole === 'Security' || userInfo.department === 'Security') && (
+                  <SidebarItem href="/dashboard/real-estate/pre-registrations" current={pathname?.startsWith('/dashboard/real-estate/pre-registrations')}>
+                    <ClipboardDocumentCheckIcon />
+                    <SidebarLabel>Pre-Registrations</SidebarLabel>
+                  </SidebarItem>
+                )}
+
+                {/* Tenant Approvals - All real estate staff */}
+                <SidebarItem href="/dashboard/real-estate/approvals" current={pathname?.startsWith('/dashboard/real-estate/approvals')}>
+                  <svg className="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <SidebarLabel>Approvals</SidebarLabel>
+                </SidebarItem>
+
+                {/* Parking - Administrators and Security */}
+                {(userInfo.isAdministrator || userInfo.staffRole === 'Security' || userInfo.department === 'Security') && (
+                  <SidebarItem href="/dashboard/real-estate/parking" current={pathname?.startsWith('/dashboard/real-estate/parking')}>
+                    <TruckIcon />
+                    <SidebarLabel>Parking</SidebarLabel>
+                  </SidebarItem>
+                )}
+              </SidebarSection>
+            )}
+
+            <SidebarSection>
               {userInfo.isAdministrator && (
                 <>
                   <SidebarItem href="/staff" current={pathname?.startsWith('/staff')}>

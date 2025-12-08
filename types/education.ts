@@ -791,3 +791,237 @@ export interface AddGuardianInput {
   canPickup: boolean;
   canAuthorizeOthers: boolean;
 }
+
+// ============================================================================
+// TIMETABLE MANAGEMENT TYPES
+// ============================================================================
+
+export type DayOfWeek = 'Monday' | 'Tuesday' | 'Wednesday' | 'Thursday' | 'Friday' | 'Saturday' | 'Sunday';
+
+export interface InstitutionClass {
+  id: string;
+  institutionId: string;
+  className: string;
+  gradeLevel?: string;
+  section?: string;
+  academicYear: string;
+  maxStudents?: number;
+  classTeacherId?: string;
+  classTeacherName?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface InstitutionRoom {
+  id: string;
+  institutionId: string;
+  roomName: string;
+  buildingName?: string;
+  floor?: number;
+  capacity?: number;
+  roomType?: string;
+  hasWhiteboard: boolean;
+  hasProjector: boolean;
+  facilities?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface TimetableSlot {
+  id: string;
+  institutionId: string;
+  classId?: string;
+  className?: string;
+  subjectId?: string;
+  subjectName: string;
+  teacherId?: string;
+  teacherName?: string;
+  roomId?: string;
+  roomName?: string;
+  dayOfWeek: DayOfWeek;
+  startTime: string; // HH:MM format
+  endTime: string; // HH:MM format
+  isRecurring: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AddClassInput {
+  institutionId: string;
+  className: string;
+  gradeLevel?: string;
+  section?: string;
+  academicYear: string;
+  maxStudents?: number;
+  classTeacherId?: string;
+}
+
+export interface AddRoomInput {
+  institutionId: string;
+  roomName: string;
+  buildingName?: string;
+  floor?: number;
+  capacity?: number;
+  roomType?: string;
+  hasWhiteboard?: boolean;
+  hasProjector?: boolean;
+  facilities?: string;
+}
+
+export interface AddTimetableSlotInput {
+  institutionId: string;
+  classId?: string;
+  subjectId?: string;
+  subjectName: string;
+  teacherId?: string;
+  roomId?: string;
+  dayOfWeek: DayOfWeek;
+  startTime: string;
+  endTime: string;
+  isRecurring?: boolean;
+}
+
+export interface UpdateTimetableSlotInput {
+  slotId: string;
+  classId?: string;
+  subjectId?: string;
+  subjectName?: string;
+  teacherId?: string;
+  roomId?: string;
+  dayOfWeek?: DayOfWeek;
+  startTime?: string;
+  endTime?: string;
+}
+
+// ============================================================================
+// LIBRARY MANAGEMENT TYPES
+// ============================================================================
+
+export interface LibraryBook {
+  id: string;
+  institutionId: string;
+  title: string;
+  authors: string[];
+  isbn?: string;
+  publisher?: string;
+  publicationYear?: number;
+  category?: string;
+  totalCopies: number;
+  availableCopies: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface BookLoan {
+  id: string;
+  institutionId: string;
+  bookId: string;
+  bookTitle?: string;
+  borrowerStudentId?: string;
+  borrowerStaffId?: string;
+  borrowerName?: string;
+  borrowerType?: string;
+  checkedOutBy?: string;
+  checkoutDate: string;
+  dueDate: string;
+  returnDate?: string;
+  renewalCount: number;
+  status: 'active' | 'returned' | 'overdue' | 'lost';
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LibraryLateFee {
+  id: string;
+  institutionId: string;
+  loanId: string;
+  amountDue: number;
+  amountPaid: number;
+  isPaid: boolean;
+  paidAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AddBookInput {
+  institutionId: string;
+  title: string;
+  authors: string[];
+  isbn?: string;
+  publisher?: string;
+  publicationYear?: number;
+  category?: string;
+  totalCopies: number;
+}
+
+export interface CheckoutBookInput {
+  institutionId: string;
+  bookId: string;
+  borrowerStudentId?: string;
+  borrowerStaffId?: string;
+  dueDate: string;
+}
+
+export interface LibrarySearchFilters {
+  institutionId: string;
+  searchTerm?: string;
+  category?: string;
+  availableOnly?: boolean;
+}
+
+// ============================================================================
+// ONLINE DIARY SYSTEM TYPES (Primary Schools Only)
+// ============================================================================
+
+export type AttendanceStatus = 'present' | 'absent' | 'late' | 'early_dismissal';
+export type AssignmentType = 'homework' | 'reading' | 'project' | 'study' | 'practice';
+
+export interface StudentDiaryEntry {
+  id: string;
+  studentId: string;
+  entryDate: string; // YYYY-MM-DD format
+  teacherName?: string;
+  generalNotes?: string;
+  behaviorNotes?: string;
+  attendanceStatus?: AttendanceStatus;
+  assignments: DiaryAssignment[];
+  isAcknowledged: boolean;
+  acknowledgmentDate?: string;
+}
+
+export interface DiaryAssignment {
+  id: string;
+  subjectName: string;
+  title: string;
+  description?: string;
+  assignmentType: AssignmentType;
+  dueDate?: string; // YYYY-MM-DD format
+  isUrgent: boolean;
+  isCompleted: boolean;
+}
+
+export interface AddDiaryEntryInput {
+  studentId: string;
+  entryDate: string;
+  generalNotes?: string;
+  behaviorNotes?: string;
+  attendanceStatus?: AttendanceStatus;
+}
+
+export interface AddDiaryAssignmentInput {
+  diaryEntryId: string;
+  subjectId?: string;
+  subjectName: string;
+  title: string;
+  description?: string;
+  assignmentType: AssignmentType;
+  dueDate?: string;
+  isUrgent?: boolean;
+}
+
+export interface AcknowledgeDiaryInput {
+  diaryEntryId: string;
+  parentNotes?: string;
+  assignmentsCompleted: string[]; // Array of assignment IDs
+}

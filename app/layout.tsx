@@ -2,6 +2,10 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { QueryProvider } from "@/lib/query-client";
+import { NetworkStatusIndicator } from "./components/NetworkStatusIndicator";
+import { OfflineSyncProvider } from "@/lib/offline-sync-manager";
+import { OfflineQueueBadge } from "./components/OfflineQueueStatus";
+import { Toaster } from "sonner";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -29,7 +33,12 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <QueryProvider>
-          {children}
+          <OfflineSyncProvider>
+            <NetworkStatusIndicator />
+            <OfflineQueueBadge />
+            {children}
+            <Toaster position="top-right" />
+          </OfflineSyncProvider>
         </QueryProvider>
       </body>
     </html>
