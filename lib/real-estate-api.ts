@@ -373,8 +373,8 @@ export const CREATE_UNIT = `
 `;
 
 export const UPDATE_UNIT_STATUS = `
-  mutation UpdateUnitStatus($unitId: String!, $unitStatus: String!) {
-    updateUnitStatus(unitId: $unitId, unitStatus: $unitStatus) {
+  mutation UpdateUnitStatus($unitId: String!, $newStatus: UnitStatus!) {
+    updateUnitStatus(unitId: $unitId, newStatus: $newStatus) {
       success
       message
     }
@@ -525,7 +525,7 @@ export async function createUnit(input: Types.CreateUnitInput): Promise<Types.Un
 }
 
 export async function updateUnitStatus(unitId: string, unitStatus: Types.UnitStatus): Promise<Types.RealEstateOperationResponse> {
-  const data = await graphql<{ updateUnitStatus: Types.RealEstateOperationResponse }>(UPDATE_UNIT_STATUS, { unitId, unitStatus });
+  const data = await graphql<{ updateUnitStatus: Types.RealEstateOperationResponse }>(UPDATE_UNIT_STATUS, { unitId, newStatus: unitStatus });
   return data.updateUnitStatus;
 }
 

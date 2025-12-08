@@ -7,8 +7,8 @@ import { useOfflineMutation } from '@/lib/hooks/useOfflineMutation';
 import { ApplicationLayout } from '../../../components/application-layout';
 import { isAuthenticated, loadUserInfo, isAdministrator, getUserRoleDisplayName, type UserInfo } from '@/lib/roles';
 import { createLayoutUserInfo } from '@/lib/layout-utils';
-import { getMyProperties, getUnitsByProperty, createUnit, updateUnitStatus } from '@/lib/real-estate-api';
-import type { Property, Unit, CreateUnitInput, UnitStatus, UnitType } from '@/types/real-estate';
+import { getMyProperties, getUnitsByProperty, createUnit, updateUnitStatus, getTenantByUnit } from '@/lib/real-estate-api';
+import type { Property, Unit, CreateUnitInput, UnitStatus, UnitType, Tenant, TenantStatus } from '@/types/real-estate';
 import { Button } from '@/app/components/button';
 import { Input } from '@/app/components/input';
 import { Select } from '@/app/components/select';
@@ -29,6 +29,10 @@ export default function UnitsPage() {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedUnit, setSelectedUnit] = useState<Unit | null>(null);
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
+  const [tenantModalState, setTenantModalState] = useState<{ unitId: string | null; isOpen: boolean }>({
+    unitId: null,
+    isOpen: false,
+  });
 
   // Form state
   const [formData, setFormData] = useState<CreateUnitInput>({
@@ -77,6 +81,13 @@ export default function UnitsPage() {
     queryKey: ['units', selectedPropertyId],
     queryFn: () => getUnitsByProperty(selectedPropertyId),
     enabled: !!selectedPropertyId,
+  });
+
+  // Fetch tenant for selected unit (when modal is open)
+  const { data: tenant, isLoading: tenantLoading } = useQuery({
+    queryKey: ['tenant', tenantModalState.unitId],
+    queryFn: () => getTenantByUnit(tenantModalState.unitId!),
+    enabled: !!tenantModalState.unitId && tenantModalState.isOpen,
   });
 
   // Create unit mutation (offline-aware)
@@ -164,6 +175,18 @@ export default function UnitsPage() {
       penthouse: { color: 'red' as const, label: 'Penthouse' },
     };
     const badge = badges[type];
+    return <Badge color={badge.color}>{badge.label}</Badge>;
+  };
+
+  const getTenantStatusBadge = (status: TenantStatus) => {
+    const badges = {
+      active: { color: 'lime' as const, label: 'Active' },
+      inactive: { color: 'zinc' as const, label: 'Inactive' },
+      suspended: { color: 'amber' as const, label: 'Suspended' },
+      terminated: { color: 'red' as const, label: 'Terminated' },
+      pending_move_in: { color: 'blue' as const, label: 'Pending Move-In' },
+    };
+    const badge = badges[status];
     return <Badge color={badge.color}>{badge.label}</Badge>;
   };
 
@@ -308,12 +331,12 @@ export default function UnitsPage() {
                                 setIsStatusDialogOpen(true);
                               }}
                             >
-                              Change Status
+                              Maintenance
                             </Button>
                             {unit.unitStatus === 'occupied' && (
                               <Button
                                 outline
-                                onClick={() => router.push(`/dashboard/real-estate/tenants?unit=${unit.id}`)}
+                                onClick={() => setTenantModalState({ unitId: unit.id, isOpen: true })}
                               >
                                 View Tenant
                               </Button>
@@ -460,50 +483,196 @@ export default function UnitsPage() {
 
         {/* Update Status Dialog */}
         <Dialog open={isStatusDialogOpen} onClose={() => setIsStatusDialogOpen(false)}>
-          <DialogTitle>Update Unit Status</DialogTitle>
+          <DialogTitle>Unit Maintenance</DialogTitle>
           <DialogBody>
-            <p className="text-sm text-gray-600 mb-4">
-              Change the status of unit <strong>{selectedUnit?.unitNumber}</strong>
-            </p>
-            <div className="space-y-2">
-              <Button
-                color="lime"
-                className="w-full"
-                onClick={() => handleStatusUpdate('available')}
-                disabled={selectedUnit?.unitStatus === 'available'}
-              >
-                Mark as Available
-              </Button>
-              <Button
-                color="blue"
-                className="w-full"
-                onClick={() => handleStatusUpdate('occupied')}
-                disabled={selectedUnit?.unitStatus === 'occupied'}
-              >
-                Mark as Occupied
-              </Button>
-              <Button
-                color="amber"
-                className="w-full"
-                onClick={() => handleStatusUpdate('under_maintenance')}
-                disabled={selectedUnit?.unitStatus === 'under_maintenance'}
-              >
-                Under Maintenance
-              </Button>
-              <Button
-                color="purple"
-                className="w-full"
-                onClick={() => handleStatusUpdate('reserved')}
-                disabled={selectedUnit?.unitStatus === 'reserved'}
-              >
-                Mark as Reserved
-              </Button>
+            <div className="space-y-4">
+              <div>
+                <p className="text-sm text-gray-600">
+                  Unit: <strong>{selectedUnit?.unitNumber}</strong>
+                </p>
+                <p className="text-sm text-gray-600">
+                  Current Status: <strong className="capitalize">{selectedUnit?.unitStatus.replace(/_/g, ' ')}</strong>
+                </p>
+              </div>
+
+              {selectedUnit?.unitStatus === 'available' ? (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-sm text-blue-900 mb-3">
+                    Mark this unit as under maintenance? The unit will be unavailable until maintenance is completed.
+                  </p>
+                  <Button
+                    color="amber"
+                    className="w-full"
+                    onClick={() => handleStatusUpdate('under_maintenance')}
+                  >
+                    Mark as Under Maintenance
+                  </Button>
+                </div>
+              ) : selectedUnit?.unitStatus === 'under_maintenance' ? (
+                <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                  <p className="text-sm text-green-900 mb-3">
+                    Maintenance completed? This will mark the unit as available for occupancy.
+                  </p>
+                  <Button
+                    color="lime"
+                    className="w-full"
+                    onClick={() => handleStatusUpdate('available')}
+                  >
+                    Mark as Available
+                  </Button>
+                </div>
+              ) : selectedUnit?.unitStatus === 'occupied' ? (
+                <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                  <p className="text-sm text-amber-900">
+                    <strong>This unit is currently occupied.</strong><br />
+                    To perform maintenance, please terminate the tenant first in <strong>Tenant Management</strong>, then return here to mark the unit for maintenance.
+                  </p>
+                </div>
+              ) : selectedUnit?.unitStatus === 'reserved' ? (
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                  <p className="text-sm text-purple-900">
+                    <strong>This unit is reserved.</strong><br />
+                    To perform maintenance, please cancel the reservation in <strong>Tenant Management</strong> first.
+                  </p>
+                </div>
+              ) : null}
+
+              <div className="pt-3 border-t border-gray-200">
+                <p className="text-xs text-gray-500">
+                  <strong>Note:</strong> Unit status is automatically managed when tenants are registered or terminated.
+                  Only maintenance status can be changed manually here.
+                </p>
+              </div>
             </div>
           </DialogBody>
           <DialogActions>
             <Button plain onClick={() => setIsStatusDialogOpen(false)}>
-              Cancel
+              Close
             </Button>
+          </DialogActions>
+        </Dialog>
+
+        {/* Tenant Details Modal */}
+        <Dialog
+          open={tenantModalState.isOpen}
+          onClose={() => setTenantModalState({ unitId: null, isOpen: false })}
+        >
+          <DialogTitle>Tenant Details</DialogTitle>
+          <DialogBody>
+            {tenantLoading ? (
+              <div className="text-center py-8">
+                <div className="text-gray-500">Loading tenant information...</div>
+              </div>
+            ) : !tenant ? (
+              <div className="text-center py-8">
+                <div className="text-gray-500">No tenant found for this unit</div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {/* Tenant Name and Status */}
+                <div className="flex items-center justify-between pb-3 border-b border-gray-200">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">
+                      {tenant.firstName} {tenant.lastName}
+                    </h3>
+                    <p className="text-sm text-gray-500">Tenant ID: {tenant.id}</p>
+                  </div>
+                  {getTenantStatusBadge(tenant.tenantStatus)}
+                </div>
+
+                {/* Contact Information */}
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">Contact Information</h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-gray-500 w-24">Phone:</span>
+                      <span className="text-gray-900 font-medium">{tenant.phoneNumber}</span>
+                    </div>
+                    {tenant.email && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-gray-500 w-24">Email:</span>
+                        <span className="text-gray-900">{tenant.email}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Lease Information */}
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">Lease Information</h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-gray-500 w-24">Move-In:</span>
+                      <span className="text-gray-900">
+                        {new Date(tenant.moveInDate).toLocaleDateString('en-US', {
+                          year: 'numeric',
+                          month: 'long',
+                          day: 'numeric',
+                        })}
+                      </span>
+                    </div>
+                    {tenant.moveOutDate && (
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="text-gray-500 w-24">Move-Out:</span>
+                        <span className="text-gray-900">
+                          {new Date(tenant.moveOutDate).toLocaleDateString('en-US', {
+                            year: 'numeric',
+                            month: 'long',
+                            day: 'numeric',
+                          })}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Visitor Settings */}
+                <div>
+                  <h4 className="text-sm font-medium text-gray-700 mb-2">Visitor Settings</h4>
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-gray-500 w-40">Approval Required:</span>
+                      <Badge color={tenant.requireApprovalForVisitors ? 'amber' : 'lime'}>
+                        {tenant.requireApprovalForVisitors ? 'Yes' : 'No'}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2 text-sm">
+                      <span className="text-gray-500 w-40">Pre-Registration:</span>
+                      <Badge color={tenant.allowPreRegistration ? 'lime' : 'zinc'}>
+                        {tenant.allowPreRegistration ? 'Allowed' : 'Not Allowed'}
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Registered Date */}
+                <div className="pt-3 border-t border-gray-200">
+                  <p className="text-xs text-gray-500">
+                    Registered on{' '}
+                    {new Date(tenant.createdAt).toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric',
+                    })}
+                  </p>
+                </div>
+              </div>
+            )}
+          </DialogBody>
+          <DialogActions>
+            <Button plain onClick={() => setTenantModalState({ unitId: null, isOpen: false })}>
+              Close
+            </Button>
+            {tenant && (
+              <Button
+                onClick={() => {
+                  setTenantModalState({ unitId: null, isOpen: false });
+                  router.push(`/dashboard/real-estate/tenants?unit=${tenant.unitId}`);
+                }}
+              >
+                Manage Tenant
+              </Button>
+            )}
           </DialogActions>
         </Dialog>
       </div>
