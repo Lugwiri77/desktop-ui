@@ -61,7 +61,7 @@ export default function VisitorDashboard({
             title="Checked Out Today"
             value={stats.checkedOutToday}
             icon={CheckCircleIcon}
-            color="emerald"
+            color="green"
           />
         </div>
       )}

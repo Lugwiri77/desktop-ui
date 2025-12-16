@@ -5,7 +5,7 @@ import {
   ExternalSecurityStaff,
   SecurityCompany,
   ShiftAssignment,
-  SecurityRole as SecurityRoleType,
+  SecurityRoleDefinition,
   SecurityPermission,
   StaffActivity,
   PerformanceMetrics,

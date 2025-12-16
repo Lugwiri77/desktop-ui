@@ -127,7 +127,7 @@ export default function ApprovalsPage() {
   const canManualOverride = isSecurityManager || isAdmin;
 
   // Get staff ID from userInfo
-  const staffId = userInfo.personalAccountId || '';
+  const staffId = userInfo.userId || '';
 
   return (
     <ApplicationLayout

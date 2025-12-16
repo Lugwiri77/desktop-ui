@@ -740,7 +740,7 @@ ${exampleRow2}`;
                     onChange={handleFileUpload}
                   />
                   <label htmlFor="file-upload">
-                    <Button type="button" outline as="span">
+                    <Button type="button" outline>
                       <ArrowUpTrayIcon className="h-4 w-4 mr-2" />
                       Select File
                     </Button>

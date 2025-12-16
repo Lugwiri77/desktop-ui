@@ -295,7 +295,7 @@ export interface ApproveStaffNominationInput {
  */
 export async function approveStaffNomination(
   input: ApproveStaffNominationInput
-): Promise<{ success: boolean; message: string; staffId?: string }> {
+): Promise<{ success: boolean; message: string; staffId?: string; firstName?: string; lastName?: string }> {
   const mutation = `
     mutation ApproveStaffNomination($input: ApproveStaffNominationInput!) {
       approveStaffNomination(input: $input) {
@@ -339,12 +339,13 @@ export async function rejectStaffNomination(
 }
 
 export interface BulkApproveNominationsInput {
-  nominations: Array<{
+  nominations?: Array<{
     nominationId: string;
     assignedRole: SecurityRole;
     assignedGate: GateLocation;
     badgeNumber?: string;
   }>;
+  nominationIds?: string[];
 }
 
 /**
@@ -355,7 +356,8 @@ export async function bulkApproveNominations(
 ): Promise<{
   success: boolean;
   message: string;
-  approved: number;
+  approved?: number;
+  approvedCount?: number;
   failed: number;
   errors?: string[];
 }> {
@@ -384,7 +386,8 @@ export async function bulkApproveNominations(
 }
 
 export interface UpdateSecurityStaffInput {
-  staffId: string;
+  staffId?: string;
+  id?: string;
   securityRole?: SecurityRole;
   assignedGate?: GateLocation;
   badgeNumber?: string;
@@ -396,7 +399,7 @@ export interface UpdateSecurityStaffInput {
  */
 export async function updateSecurityStaff(
   input: UpdateSecurityStaffInput
-): Promise<{ success: boolean; message: string }> {
+): Promise<{ success: boolean; message: string; staffId?: string; id?: string }> {
   const mutation = `
     mutation UpdateSecurityStaff($input: UpdateSecurityStaffInput!) {
       updateSecurityStaff(input: $input) {
@@ -435,7 +438,8 @@ export async function deactivateSecurityStaff(
 
 export interface ResolveIncidentInput {
   incidentId: string;
-  resolution: string;
+  resolution?: string;
+  resolutionNotes?: string;
   status: 'resolved' | 'closed';
 }
 
@@ -461,7 +465,8 @@ export async function resolveSecurityIncident(
 }
 
 export interface UpdateSecurityCompanyInput {
-  companyId: string;
+  companyId?: string;
+  id?: string;
   contractEndDate?: string;
   status?: 'active' | 'inactive' | 'suspended';
   contactPerson?: string;
@@ -474,7 +479,7 @@ export interface UpdateSecurityCompanyInput {
  */
 export async function updateSecurityCompany(
   input: UpdateSecurityCompanyInput
-): Promise<{ success: boolean; message: string }> {
+): Promise<{ success: boolean; message: string; companyName?: string; id?: string }> {
   const mutation = `
     mutation UpdateSecurityCompany($input: UpdateSecurityCompanyInput!) {
       updateSecurityCompany(input: $input) {

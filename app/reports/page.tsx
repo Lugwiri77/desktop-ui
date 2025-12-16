@@ -14,6 +14,7 @@ import {
   UserInfo,
 } from '@/lib/roles';
 import { DocumentChartBarIcon } from '@heroicons/react/24/outline';
+import {createLayoutUserInfo} from "@/lib/layout-utils";
 
 export default function ReportsPage() {
   const router = useRouter();

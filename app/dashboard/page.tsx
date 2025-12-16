@@ -74,7 +74,7 @@ export default function DashboardPage() {
   // Load statistics for educational institutions
   useEffect(() => {
     const loadStatistics = async () => {
-      if (!userInfo || !userInfo.institutionId || userInfo.organizationType !== 'EducationalInstitution') {
+      if (!userInfo || !userInfo.organizationId || userInfo.organizationType !== 'EducationalInstitution') {
         return;
       }
 
@@ -92,7 +92,7 @@ export default function DashboardPage() {
         `;
 
         const result = await graphql<{ getInstitutionStatistics: InstitutionStatistics }>(query, {
-          institutionId: userInfo.institutionId,
+          institutionId: userInfo.organizationId,
         });
 
         if (result.getInstitutionStatistics) {

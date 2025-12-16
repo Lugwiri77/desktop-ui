@@ -50,6 +50,12 @@ import {
   KeyIcon,
   ClipboardDocumentCheckIcon,
   TruckIcon,
+  BanknotesIcon,
+  CreditCardIcon,
+  ReceiptPercentIcon,
+  WalletIcon,
+  DocumentDuplicateIcon,
+  ClipboardDocumentListIcon,
 } from '@heroicons/react/20/solid'
 import { useRouter, usePathname } from 'next/navigation'
 import { Logo } from './logo'
@@ -287,6 +293,51 @@ export function ApplicationLayout({ children, userInfo, onLogout, roleDisplayNam
                     <SidebarLabel>Parking</SidebarLabel>
                   </SidebarItem>
                 )}
+              </SidebarSection>
+            )}
+
+            {/* Payments Management Submenu - for administrators managing organizational finances */}
+            {userInfo.isAdministrator && (
+              <SidebarSection>
+                <SidebarHeading>Payments & Finance</SidebarHeading>
+
+                {/* Payment Dashboard */}
+                <SidebarItem href="/payments" current={pathname === '/payments'}>
+                  <BanknotesIcon />
+                  <SidebarLabel>Payment Dashboard</SidebarLabel>
+                </SidebarItem>
+
+                {/* Payment Accounts */}
+                <SidebarItem href="/payments/accounts" current={pathname?.startsWith('/payments/accounts')}>
+                  <CreditCardIcon />
+                  <SidebarLabel>Payment Accounts</SidebarLabel>
+                </SidebarItem>
+
+                {/* Invoices */}
+                <SidebarItem href="/payments/invoices" current={pathname?.startsWith('/payments/invoices')}>
+                  <DocumentDuplicateIcon />
+                  <SidebarLabel>Invoices</SidebarLabel>
+                </SidebarItem>
+
+                {/* Payment History */}
+                <SidebarItem href="/payments/transactions" current={pathname?.startsWith('/payments/transactions')}>
+                  <ClipboardDocumentListIcon />
+                  <SidebarLabel>Transactions</SidebarLabel>
+                </SidebarItem>
+
+                {/* Arrears Management */}
+                <SidebarItem href="/payments/arrears" current={pathname?.startsWith('/payments/arrears')}>
+                  <ReceiptPercentIcon />
+                  <SidebarLabel>Arrears</SidebarLabel>
+                </SidebarItem>
+
+                {/* Reconciliation */}
+                <SidebarItem href="/payments/reconciliation" current={pathname?.startsWith('/payments/reconciliation')}>
+                  <svg className="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                  <SidebarLabel>Reconciliation</SidebarLabel>
+                </SidebarItem>
               </SidebarSection>
             )}
 

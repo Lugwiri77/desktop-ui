@@ -106,7 +106,7 @@ export default function StaffApprovalPage() {
       optimisticUpdate: {
         queryKey: ['pendingStaffNominations'],
         updater: (oldData, variables) =>
-          oldData.filter((n: SecurityStaffNomination) => !variables.nominationIds.includes(n.id)),
+          oldData.filter((n: SecurityStaffNomination) => !variables.nominationIds?.includes(n.id)),
       },
     }
   );

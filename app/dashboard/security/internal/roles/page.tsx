@@ -5,12 +5,12 @@ import { Shield, Plus, Edit, Trash2, Users, ArrowLeft } from 'lucide-react';
 import { useSecurityRoles, useAvailablePermissions, useCreateSecurityRole, useUpdateSecurityRole, useDeleteSecurityRole } from '@/hooks/use-security';
 import { PermissionMatrix } from '@/app/components/security/PermissionMatrix';
 import { useRouter } from 'next/navigation';
-import { CreateRoleInput } from '@/lib/security-api';
+import { CreateRoleInput, SecurityRoleDefinition, UpdateRoleInput } from '@/lib/security-api';
 
 export default function RolesManagementPage() {
   const router = useRouter();
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [editingRole, setEditingRole] = useState<any>(null);
+  const [editingRole, setEditingRole] = useState<SecurityRoleDefinition | null>(null);
 
   const { data: roles = [], isLoading } = useSecurityRoles();
   const { data: availablePermissions = [] } = useAvailablePermissions();
@@ -28,7 +28,7 @@ export default function RolesManagementPage() {
     }
   };
 
-  const handleUpdateRole = async (roleId: string, updates: any) => {
+  const handleUpdateRole = async (roleId: string, updates: Omit<UpdateRoleInput, 'roleId'>) => {
     try {
       await updateRoleMutation.mutateAsync({ roleId, ...updates });
       setEditingRole(null);
@@ -142,7 +142,7 @@ export default function RolesManagementPage() {
           <RoleModal
             role={editingRole}
             availablePermissions={availablePermissions}
-            onSave={editingRole ? (data) => handleUpdateRole(editingRole.id, data) : handleCreateRole}
+            onSave={editingRole ? (data: Omit<UpdateRoleInput, 'roleId'>) => handleUpdateRole(editingRole.id, data) : handleCreateRole}
             onClose={() => {
               setShowCreateModal(false);
               setEditingRole(null);

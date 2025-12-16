@@ -38,12 +38,12 @@ export default function VisitorsPage() {
 
   // Get current staff member's permissions
   const { data: rbacData } = useQuery({
-    queryKey: ['staffRBACRole', userInfo?.id],
+    queryKey: ['staffRBACRole', userInfo?.userId],
     queryFn: async () => {
-      if (!userInfo?.id) throw new Error('No user ID found');
-      return getStaffRBACRole(userInfo.id);
+      if (!userInfo?.userId) throw new Error('No user ID found');
+      return getStaffRBACRole(userInfo.userId);
     },
-    enabled: !!userInfo?.id,
+    enabled: !!userInfo?.userId,
   });
 
   const permissions = rbacData?.granularPermissions

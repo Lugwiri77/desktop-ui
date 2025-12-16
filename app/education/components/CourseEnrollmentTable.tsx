@@ -6,7 +6,7 @@ import { Badge } from '../../components/badge';
 import { Heading } from '../../components/heading';
 import { Text } from '../../components/text';
 import { Button } from '../../components/button';
-import type { CourseEnrollment, EnrollmentStatus } from '../../../types/education';
+import type { CourseEnrollment, EnrollmentStatus, EnrollmentStatusType } from '../../../types/education';
 
 interface CourseEnrollmentTableProps {
   studentId: string;
@@ -94,7 +94,7 @@ export default function CourseEnrollmentTable({
     }
   };
 
-  const getStatusBadgeColor = (status: EnrollmentStatus) => {
+  const getStatusBadgeColor = (status: EnrollmentStatusType) => {
     switch (status) {
       case 'active':
         return 'green';
@@ -113,7 +113,7 @@ export default function CourseEnrollmentTable({
     }
   };
 
-  const getStatusLabel = (status: EnrollmentStatus) => {
+  const getStatusLabel = (status: EnrollmentStatusType) => {
     switch (status) {
       case 'active':
         return 'Active';

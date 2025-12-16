@@ -74,7 +74,7 @@ export default function SecurityStaffPage() {
       operation: 'updateSecurityStaff',
       priority: 'normal', // Normal priority - standard update operation
       invalidateKeys: ['securityStaff'],
-      successMessage: (data) => `${data.firstName} ${data.lastName} updated successfully`,
+      successMessage: 'Security staff updated successfully',
       onSuccess: () => {
         setEditModal({ staff: null, isOpen: false });
       },
@@ -101,7 +101,7 @@ export default function SecurityStaffPage() {
         queryKey: ['securityStaff', roleFilter, gateFilter, statusFilter],
         updater: (oldData, variables) =>
           oldData.map((s: SecurityStaff) =>
-            s.id === variables.staffId ? { ...s, status: 'inactive' } : s
+            s.id === variables ? { ...s, status: 'inactive' as const } : s
           ),
       },
     }

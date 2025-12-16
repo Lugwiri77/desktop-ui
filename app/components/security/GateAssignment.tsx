@@ -11,7 +11,7 @@ interface GateAssignmentProps {
   label?: string;
   error?: string;
   showAvailability?: boolean;
-  gateAvailability?: Record<GateLocation, { available: boolean; assignedStaff?: string[] }>;
+  gateAvailability?: Partial<Record<GateLocation, { available: boolean; assignedStaff?: string[] }>>;
   allowUnassigned?: boolean;
 }
 

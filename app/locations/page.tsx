@@ -35,8 +35,8 @@ import {
   deleteGate,
   type SecurityGate,
   type OrganizationLocation,
-  type GateLocation as GateLocationType,
 } from '@/lib/security-department-api';
+import {createLayoutUserInfo} from "@/lib/layout-utils";
 
 type TabType = 'locations' | 'gates';
 
@@ -346,7 +346,7 @@ export default function LocationsPage() {
       locationId: gateForm.locationId,
       gateCode: gateForm.gateCode,
       gateName: gateForm.gateName,
-      gateType: gateForm.gateType.toUpperCase() as GateLocationType,
+      gateType: gateForm.gateType.toUpperCase() as string,
       description: gateForm.description || undefined,
       isMonitored: gateForm.isMonitored,
     });
@@ -1209,7 +1209,7 @@ export default function LocationsPage() {
                 updateGateMutation.mutate({
                   gateId: selectedGate.id,
                   gateName: gateForm.gateName,
-                  gateType: gateForm.gateType.toUpperCase() as GateLocationType,
+                  gateType: gateForm.gateType.toUpperCase() as string,
                   description: gateForm.description || undefined,
                   isMonitored: gateForm.isMonitored,
                 });

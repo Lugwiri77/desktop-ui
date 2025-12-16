@@ -277,7 +277,6 @@ export default function PreRegistrationsPage() {
                             {preReg.registrationStatus === 'approved' && !preReg.checkedInAt && (
                               <Button
                                 outline
-                                color="blue"
                                 onClick={() => {
                                   // TODO: Implement check-in functionality
                                   alert('Check-in functionality coming soon');
@@ -289,7 +288,6 @@ export default function PreRegistrationsPage() {
                             {preReg.registrationStatus === 'pending' && (
                               <Button
                                 outline
-                                color="red"
                                 onClick={() => {
                                   // TODO: Implement cancel functionality
                                   alert('Cancel functionality coming soon');

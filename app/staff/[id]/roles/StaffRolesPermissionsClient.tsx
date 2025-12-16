@@ -15,6 +15,7 @@ import {
   getUserRoleDisplayName,
   UserInfo,
 } from '@/lib/roles';
+import {createLayoutUserInfo} from "@/lib/layout-utils";
 
 interface Roles {
   is_super_admin: boolean;

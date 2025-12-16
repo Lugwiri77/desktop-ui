@@ -52,9 +52,9 @@ export default function TimetablePage() {
 
   // Fetch classes (Primary/Secondary only)
   const { data: classes } = useQuery({
-    queryKey: ['institution-classes', userInfo?.institutionId],
-    queryFn: () => getInstitutionClasses(userInfo!.institutionId!),
-    enabled: !!userInfo?.institutionId && isPrimaryOrSecondary,
+    queryKey: ['institution-classes', userInfo?.organizationId],
+    queryFn: () => getInstitutionClasses(userInfo!.organizationId!),
+    enabled: !!userInfo?.organizationId && isPrimaryOrSecondary,
   });
 
   // Fetch timetable based on view mode
@@ -146,7 +146,7 @@ export default function TimetablePage() {
     if (!selectedSlot || !selectedClassId) return;
 
     const input: AddTimetableSlotInput = {
-      institutionId: userInfo.institutionId!,
+      institutionId: userInfo.organizationId!,
       classId: selectedClassId,
       subjectName: 'New Subject',
       dayOfWeek: selectedSlot.day,

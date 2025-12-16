@@ -14,6 +14,7 @@ import {
   UserInfo,
 } from '@/lib/roles';
 import { DocumentTextIcon, FolderIcon, ArrowUpTrayIcon } from '@heroicons/react/24/outline';
+import {createLayoutUserInfo} from "@/lib/layout-utils";
 
 export default function DocumentsPage() {
   const router = useRouter();

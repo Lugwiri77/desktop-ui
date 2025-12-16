@@ -52,37 +52,37 @@ export default function LibraryPage() {
     setLoading(false);
   }, [router]);
 
-  const canManageLibrary = isAdministrator(userInfo?.userRole || '') ||
+  const canManageLibrary = (userInfo?.userRole && isAdministrator(userInfo.userRole)) ||
                            userInfo?.staffRole === 'ITAdministrator';
 
   // Queries
   const { data: books, refetch: refetchBooks } = useQuery({
-    queryKey: ['library-books', userInfo?.institutionId, searchTerm, category, availableOnly],
+    queryKey: ['library-books', userInfo?.organizationId, searchTerm, category, availableOnly],
     queryFn: () => searchLibraryBooks({
-      institutionId: userInfo!.institutionId!,
+      institutionId: userInfo!.organizationId!,
       searchTerm: searchTerm || undefined,
       category: category || undefined,
       availableOnly: availableOnly || undefined,
     }),
-    enabled: !!userInfo?.institutionId && activeTab === 'browse',
+    enabled: !!userInfo?.organizationId && activeTab === 'browse',
   });
 
   const { data: myLoans } = useQuery({
-    queryKey: ['my-book-loans', userInfo?.institutionId],
-    queryFn: () => getMyBookLoans(userInfo!.institutionId!),
-    enabled: !!userInfo?.institutionId && activeTab === 'myloans',
+    queryKey: ['my-book-loans', userInfo?.organizationId],
+    queryFn: () => getMyBookLoans(userInfo!.organizationId!),
+    enabled: !!userInfo?.organizationId && activeTab === 'myloans',
   });
 
   const { data: allLoans } = useQuery({
-    queryKey: ['all-book-loans', userInfo?.institutionId],
-    queryFn: () => getAllBookLoans(userInfo!.institutionId!),
-    enabled: !!userInfo?.institutionId && activeTab === 'manage' && canManageLibrary,
+    queryKey: ['all-book-loans', userInfo?.organizationId],
+    queryFn: () => getAllBookLoans(userInfo!.organizationId!),
+    enabled: !!userInfo?.organizationId && activeTab === 'manage' && canManageLibrary,
   });
 
   const { data: overdueBooks } = useQuery({
-    queryKey: ['overdue-books', userInfo?.institutionId],
-    queryFn: () => getOverdueBooks(userInfo!.institutionId!),
-    enabled: !!userInfo?.institutionId && activeTab === 'overdue' && canManageLibrary,
+    queryKey: ['overdue-books', userInfo?.organizationId],
+    queryFn: () => getOverdueBooks(userInfo!.organizationId!),
+    enabled: !!userInfo?.organizationId && activeTab === 'overdue' && canManageLibrary,
   });
 
   // Mutations
@@ -298,7 +298,6 @@ export default function LibraryPage() {
                     </div>
                     {book.availableCopies > 0 && (
                       <Button
-                        size="sm"
                         onClick={() => {
                           setSelectedBook(book);
                           setIsCheckoutDialogOpen(true);
@@ -349,10 +348,10 @@ export default function LibraryPage() {
                     <div className="flex gap-2">
                       {loan.status === 'active' && (
                         <>
-                          <Button size="sm" onClick={() => renewMutation.mutate(loan.id)}>
+                          <Button onClick={() => renewMutation.mutate(loan.id)}>
                             Renew
                           </Button>
-                          <Button size="sm" color="amber" onClick={() => returnMutation.mutate(loan.id)}>
+                          <Button color="amber" onClick={() => returnMutation.mutate(loan.id)}>
                             Return
                           </Button>
                         </>
@@ -392,7 +391,7 @@ export default function LibraryPage() {
                   </TableCell>
                   <TableCell>
                     {loan.status === 'active' && (
-                      <Button size="sm" color="amber" onClick={() => returnMutation.mutate(loan.id)}>
+                      <Button color="amber" onClick={() => returnMutation.mutate(loan.id)}>
                         Return
                       </Button>
                     )}
@@ -435,7 +434,7 @@ export default function LibraryPage() {
                         <Badge color="red">{daysOverdue} days</Badge>
                       </TableCell>
                       <TableCell>
-                        <Button size="sm" color="amber" onClick={() => returnMutation.mutate(loan.id)}>
+                        <Button color="amber" onClick={() => returnMutation.mutate(loan.id)}>
                           Mark Returned
                         </Button>
                       </TableCell>
@@ -467,7 +466,7 @@ export default function LibraryPage() {
               const dueDate = new Date();
               dueDate.setDate(dueDate.getDate() + 14);
               checkoutMutation.mutate({
-                institutionId: userInfo.institutionId!,
+                institutionId: userInfo.organizationId!,
                 bookId: selectedBook.id,
                 dueDate: dueDate.toISOString().split('T')[0],
               });
@@ -488,7 +487,7 @@ export default function LibraryPage() {
               e.preventDefault();
               const formData = new FormData(e.currentTarget);
               addBookMutation.mutate({
-                institutionId: userInfo.institutionId!,
+                institutionId: userInfo.organizationId!,
                 title: formData.get('title') as string,
                 authors: [formData.get('authors') as string],
                 isbn: formData.get('isbn') as string || undefined,

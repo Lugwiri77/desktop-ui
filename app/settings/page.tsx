@@ -18,6 +18,7 @@ import {
   getUserRoleDisplayName,
   isEducationInstitution,
   UserInfo,
+  AccountType,
 } from '@/lib/roles';
 import { createLayoutUserInfo } from '@/lib/layout-utils';
 import dynamic from 'next/dynamic';
@@ -124,7 +125,7 @@ export default function SettingsPage() {
 
     // Only administrators can access settings
     // Personal accounts cannot configure database settings
-    if (!isAdministrator(info.userRole) || info.accountType === 'personal') {
+    if (!isAdministrator(info.userRole) || info.accountType === AccountType.Personal) {
       router.push('/dashboard');
       return;
     }
@@ -546,7 +547,7 @@ export default function SettingsPage() {
                 <Description>
                   Select where you want to store your organization's data
                 </Description>
-                <RadioGroup value={databaseStrategy} onChange={setDatabaseStrategy} className="mt-3">
+                <RadioGroup value={databaseStrategy} onChange={(value) => setDatabaseStrategy(value as DatabaseStrategy)} className="mt-3">
                   <RadioField>
                     <Radio value="kastaem_only" />
                     <Label>Kastaem Database Only (Default)</Label>

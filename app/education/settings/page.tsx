@@ -73,7 +73,7 @@ export default function EducationSettingsPage() {
       roleDisplayName={roleDisplayName}
       isAdmin={isAdmin}
     >
-      <InstitutionSettings />
+      <InstitutionSettings institutionId={userInfo.organizationId || ''} />
     </ApplicationLayout>
   );
 }

@@ -33,7 +33,7 @@ export type StudentType =
   | 'special_education'
   | 'online_learning';
 
-export type EnrollmentStatus = 'active' | 'suspended' | 'graduated' | 'withdrawn' | 'transferred';
+export type EnrollmentStatus = 'active' | 'suspended' | 'graduated' | 'withdrawn' | 'transferred' | 'completed' | 'incomplete' | 'failed';
 
 export type StudentStatus = 'checked_in' | 'checked_out' | 'in_class' | 'on_trip' | 'picked_up';
 
@@ -97,14 +97,21 @@ export interface BaseStudent {
 export type GuardianRelationshipType =
   | 'mother'
   | 'father'
+  | 'stepmother'
+  | 'stepfather'
+  | 'grandmother'
+  | 'grandfather'
+  | 'aunt'
+  | 'uncle'
   | 'legal_guardian'
   | 'grandparent'
   | 'sibling'
-  | 'foster_parent';
+  | 'foster_parent'
+  | 'other';
 
 export interface Guardian {
   id: string;
-  studentId: string;
+  studentId?: string;
 
   // Guardian Identity
   guardianPersonalAccountId?: string; // If they have app
@@ -115,14 +122,14 @@ export interface Guardian {
 
   // Relationship
   relationshipType: GuardianRelationshipType;
-  isPrimaryGuardian: boolean;
-  isEmergencyContact: boolean;
-  contactPriority: number; // 1 = first to contact
+  isPrimaryGuardian?: boolean;
+  isEmergencyContact?: boolean;
+  contactPriority?: number; // 1 = first to contact
 
   // Pickup Authorization
   canPickup: boolean;
   canAuthorizeOthers: boolean;
-  requiresApprovalEachTime: boolean;
+  requiresApprovalEachTime?: boolean;
 
   // Contact Details
   residentialAddress?: string;
@@ -132,12 +139,12 @@ export interface Guardian {
   // Notes & Status
   notes?: string;
   courtOrderRestrictions?: string;
-  isActive: boolean;
+  isActive?: boolean;
   verifiedAt?: string;
   verifiedBy?: string;
 
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface AuthorizedPickupPerson {
@@ -219,12 +226,12 @@ export interface UniversityStudentDetails {
   concentration?: string; // "Artificial Intelligence"
 
   // Academic Status
-  academicStanding: AcademicStanding;
+  academicStanding?: AcademicStanding;
   gpa?: number; // 0.00 to 4.00
   cumulativeGpa?: number;
-  totalCreditsEarned: number;
+  totalCreditsEarned?: number;
   totalCreditsRequired?: number;
-  creditsInProgress: number;
+  creditsInProgress?: number;
   expectedGraduationDate?: string; // ISO date
   graduationDate?: string;
 
@@ -233,6 +240,12 @@ export interface UniversityStudentDetails {
   advisorEmail?: string;
   advisorPhone?: string;
   lastAdvisorMeetingDate?: string;
+  advisor?: {
+    name?: string;
+    email?: string;
+    phone?: string;
+    officeLocation?: string;
+  };
 
   // Financial
   scholarshipStatus?: ScholarshipStatus;
@@ -241,37 +254,47 @@ export interface UniversityStudentDetails {
   financialAidStatus?: string;
   tuitionBalance?: number;
   paymentPlan?: string; // "full_upfront", "semester", "monthly"
+  financialAid?: {
+    scholarshipName?: string;
+    scholarshipAmount?: number;
+    financialAidStatus?: string;
+  };
 
   // Campus Life
   residentialStatus?: ResidentialStatus;
   dormBuilding?: string;
   dormRoom?: string;
   mealPlanType?: string;
+  campusLife?: {
+    dormBuilding?: string;
+    dormRoom?: string;
+    mealPlanType?: string;
+  };
 
   // Next of Kin (Emergency Contact ONLY - NOT guardian)
-  nextOfKin: NextOfKin;
+  nextOfKin?: NextOfKin;
   secondaryContact?: SecondaryContact;
 
   // International Students
-  isInternationalStudent: boolean;
+  isInternationalStudent?: boolean;
   countryOfOrigin?: string;
   visaType?: string;
   visaExpiryDate?: string;
   passportNumber?: string;
 
   // Leave Status
-  isOnLeave: boolean;
+  isOnLeave?: boolean;
   leaveStartDate?: string;
   leaveEndDate?: string;
   leaveReason?: string;
 
   // Exchange Students
-  isExchangeStudent: boolean;
+  isExchangeStudent?: boolean;
   exchangeProgramName?: string;
   homeUniversity?: string;
 
-  createdAt: string;
-  updatedAt: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface UniversityStudent extends BaseStudent {
@@ -285,7 +308,7 @@ export interface UniversityStudent extends BaseStudent {
 // COURSE ENROLLMENTS (University/College)
 // ============================================================================
 
-export type EnrollmentStatusType = 'enrolled' | 'completed' | 'dropped' | 'withdrawn' | 'failed' | 'in_progress';
+export type EnrollmentStatusType = 'active' | 'enrolled' | 'completed' | 'dropped' | 'withdrawn' | 'failed' | 'incomplete' | 'in_progress';
 
 export interface CourseSchedule {
   [day: string]: string[]; // {"monday": ["09:00-11:00"], "wednesday": ["09:00-11:00"]}
@@ -319,6 +342,7 @@ export interface CourseEnrollment {
   finalScore?: number;
   courseworkScore?: number;
   totalScore?: number;
+  currentScore?: number; // Current overall score
   grade?: string; // "A", "B+", "C", "F", "W" (withdrawn)
   gradePoints?: number; // 4.0, 3.7, 3.3
 

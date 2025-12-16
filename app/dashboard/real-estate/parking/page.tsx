@@ -115,7 +115,7 @@ export default function ParkingPage() {
       operation: 'createParkingSpace',
       priority: 'high', // High priority - security/access control
       invalidateKeys: ['parking-spaces', 'property-stats'],
-      successMessage: (data) => `Parking space ${data.spaceNumber} created successfully`,
+      successMessage: 'Parking space created successfully',
       onSuccess: () => {
         setIsCreateDialogOpen(false);
         resetCreateForm();
@@ -372,7 +372,6 @@ export default function ParkingPage() {
                             {space.parkingStatus === 'available' ? (
                               <Button
                                 outline
-                                color="blue"
                                 onClick={() => {
                                   setSelectedSpace(space);
                                   setIsAssignDialogOpen(true);
@@ -383,7 +382,6 @@ export default function ParkingPage() {
                             ) : (
                               <Button
                                 outline
-                                color="red"
                                 onClick={() => releaseMutation.mutate(space.id)}
                                 disabled={releaseMutation.isPending}
                               >

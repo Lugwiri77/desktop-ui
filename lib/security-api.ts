@@ -86,7 +86,7 @@ export interface ShiftAssignment {
   updatedAt?: string;
 }
 
-export interface SecurityRole {
+export interface SecurityRoleDefinition {
   id: string;
   name: string;
   displayName: string;
@@ -444,7 +444,7 @@ export async function getPerformanceMetrics(
 // Roles & Permissions
 // ============================================================================
 
-export async function getSecurityRoles(): Promise<SecurityRole[]> {
+export async function getSecurityRoles(): Promise<SecurityRoleDefinition[]> {
   const query = `
     query GetSecurityRoles {
       securityRoles {
@@ -466,7 +466,7 @@ export async function getSecurityRoles(): Promise<SecurityRole[]> {
     }
   `;
 
-  const data = await graphql<{ securityRoles: SecurityRole[] }>(query);
+  const data = await graphql<{ securityRoles: SecurityRoleDefinition[] }>(query);
   return data.securityRoles;
 }
 

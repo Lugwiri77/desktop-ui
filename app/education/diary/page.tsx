@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ApplicationLayout } from '../../components/application-layout';
-import { isAuthenticated, loadUserInfo, isAdministrator, getUserRoleDisplayName, type UserInfo } from '@/lib/roles';
+import { isAuthenticated, loadUserInfo, isAdministrator, getUserRoleDisplayName, AccountType, type UserInfo } from '@/lib/roles';
 import { createLayoutUserInfo } from '@/lib/layout-utils';
 import { getStudentDiary, getUnacknowledgedDiaries, addDiaryEntry, addDiaryAssignment, acknowledgeDiary, graphql } from '@/lib/education-api';
 import { GET_MY_CHILDREN } from '@/lib/education-api';
@@ -41,9 +41,9 @@ export default function DiaryPage() {
 
   const isTeacher = userInfo?.staffRole === 'Administrator' ||
                    userInfo?.staffRole === 'DepartmentManager' ||
-                   userInfo?.accountType === 'InstitutionStaff';
+                   userInfo?.accountType === AccountType.Institution;
 
-  const isParent = userInfo?.accountType === 'PersonalAccount';
+  const isParent = userInfo?.accountType === AccountType.Personal;
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -63,10 +63,10 @@ export default function DiaryPage() {
 
   // Fetch children for parents
   const { data: children } = useQuery({
-    queryKey: ['my-children', userInfo?.institutionId],
+    queryKey: ['my-children', userInfo?.organizationId],
     queryFn: async () => {
       const data = await graphql<{ getMyChildren: Child[] }>(GET_MY_CHILDREN, {
-        institutionId: userInfo?.institutionId,
+        institutionId: userInfo?.organizationId,
       });
       return data.getMyChildren;
     },
@@ -290,7 +290,7 @@ export default function DiaryPage() {
                             <div className="flex items-center gap-2">
                               <span className="font-medium text-gray-900">{assignment.title}</span>
                               {assignment.isUrgent && (
-                                <Badge color="red" size="sm">
+                                <Badge color="red">
                                   Urgent
                                 </Badge>
                               )}

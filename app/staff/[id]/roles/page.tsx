@@ -26,6 +26,7 @@ import {
   getUserRoleDisplayName,
   UserInfo,
 } from '@/lib/roles';
+import {createLayoutUserInfo} from "@/lib/layout-utils";
 
 // RBAC Role Types (for form state)
 type StaffRoleType = 'Administrator' | 'CEO' | 'HRManager' | 'ITAdministrator' | 'DepartmentManager' | 'Staff';
@@ -702,7 +703,7 @@ export default function StaffRBACRolesPage() {
               Select the role that defines this staff member's level of access and responsibilities in the system.
             </Text>
 
-            <RadioGroup value={selectedRole} onChange={handleRoleChange}>
+            <RadioGroup value={selectedRole} onChange={(value) => handleRoleChange(value as StaffRoleType)}>
               <div className="space-y-4">
                 {(Object.keys(roleDescriptions) as StaffRoleType[]).map((role) => (
                   <RadioField key={role}>

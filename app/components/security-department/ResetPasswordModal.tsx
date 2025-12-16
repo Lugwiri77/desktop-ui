@@ -102,7 +102,7 @@ export function ResetPasswordModal({ isOpen, onClose, staffId, staffName }: Rese
       <DialogBody>
         <div className="space-y-4">
           {/* Warning Alert */}
-          <Alert variant="warning">
+          <Alert onClose={() => {}}>
             <Shield className="h-4 w-4" />
             <AlertTitle>Administrative Password Reset</AlertTitle>
             <AlertDescription>
@@ -112,7 +112,7 @@ export function ResetPasswordModal({ isOpen, onClose, staffId, staffName }: Rese
           </Alert>
 
           {isSuccess && (
-            <Alert variant="success">
+            <Alert onClose={() => {}}>
               <Check className="h-4 w-4" />
               <AlertTitle>Password Reset Successfully</AlertTitle>
               <AlertDescription>
@@ -196,7 +196,7 @@ export function ResetPasswordModal({ isOpen, onClose, staffId, staffName }: Rese
                 <code className="flex-1 text-sm font-mono text-green-400 bg-zinc-900 px-3 py-2 rounded">
                   {showPassword ? newPassword : '••••••••••••••••'}
                 </code>
-                <Button type="button" onClick={handleCopyPassword} outline size="sm">
+                <Button type="button" onClick={handleCopyPassword} outline>
                   {copied ? (
                     <>
                       <Check className="h-4 w-4 mr-2" />
@@ -218,7 +218,7 @@ export function ResetPasswordModal({ isOpen, onClose, staffId, staffName }: Rese
           )}
 
           {/* Important Notice */}
-          <Alert>
+          <Alert onClose={() => {}}>
             <AlertCircle className="h-4 w-4" />
             <AlertDescription>
               <strong>Important:</strong> Make sure to copy and securely share this password with the staff
