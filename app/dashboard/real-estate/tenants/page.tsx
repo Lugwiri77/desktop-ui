@@ -30,8 +30,9 @@ import { Dialog, DialogTitle, DialogBody, DialogActions } from '@/app/components
 import { Field, Label } from '@/app/components/fieldset';
 import { Badge } from '@/app/components/badge';
 import { Table, TableHead, TableBody, TableRow, TableHeader, TableCell } from '@/app/components/table';
+import { InvitationDialog } from '@/app/components/InvitationDialog';
 import { toast } from 'sonner';
-import { PlusIcon, UserGroupIcon, KeyIcon } from '@heroicons/react/20/solid';
+import { PlusIcon, UserGroupIcon, KeyIcon, PaperAirplaneIcon, CheckCircleIcon } from '@heroicons/react/20/solid';
 
 export default function TenantsPage() {
   const router = useRouter();
@@ -43,6 +44,8 @@ export default function TenantsPage() {
   const [isRegisterDialogOpen, setIsRegisterDialogOpen] = useState(false);
   const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
   const [isStatusDialogOpen, setIsStatusDialogOpen] = useState(false);
+  const [isInvitationDialogOpen, setIsInvitationDialogOpen] = useState(false);
+  const [tenantToInvite, setTenantToInvite] = useState<Tenant | null>(null);
 
   // Form state
   const [formData, setFormData] = useState<RegisterTenantInput>({
@@ -269,6 +272,7 @@ export default function TenantsPage() {
                       <TableHeader>Contact</TableHeader>
                       <TableHeader>Unit</TableHeader>
                       <TableHeader>Status</TableHeader>
+                      <TableHeader>App Status</TableHeader>
                       <TableHeader>Move-In Date</TableHeader>
                       <TableHeader>Visitor Settings</TableHeader>
                       <TableHeader>Actions</TableHeader>
@@ -298,6 +302,16 @@ export default function TenantsPage() {
                         </TableCell>
                         <TableCell>{getTenantStatusBadge(tenant.tenantStatus)}</TableCell>
                         <TableCell>
+                          {tenant.personalAccountId ? (
+                            <Badge color="lime" className="flex items-center gap-1">
+                              <CheckCircleIcon className="h-3 w-3" />
+                              Has App
+                            </Badge>
+                          ) : (
+                            <Badge color="zinc">No App Account</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
                           <div className="text-sm">
                             {new Date(tenant.moveInDate).toLocaleDateString()}
                           </div>
@@ -319,6 +333,18 @@ export default function TenantsPage() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
+                            {!tenant.personalAccountId && (
+                              <Button
+                                color="indigo"
+                                onClick={() => {
+                                  setTenantToInvite(tenant);
+                                  setIsInvitationDialogOpen(true);
+                                }}
+                              >
+                                <PaperAirplaneIcon className="h-4 w-4 mr-1" />
+                                Invite to App
+                              </Button>
+                            )}
                             <Button
                               outline
                               onClick={() => {
@@ -636,6 +662,28 @@ export default function TenantsPage() {
             </Button>
           </DialogActions>
         </Dialog>
+
+        {/* Invitation Dialog */}
+        {tenantToInvite && (
+          <InvitationDialog
+            isOpen={isInvitationDialogOpen}
+            onClose={() => {
+              setIsInvitationDialogOpen(false);
+              setTenantToInvite(null);
+            }}
+            organizationType="business"
+            organizationId={userInfo.businessId}
+            inviteeType="tenant"
+            inviteeId={tenantToInvite.id}
+            inviteeTableName="tenants"
+            inviteeName={`${tenantToInvite.firstName} ${tenantToInvite.lastName}`}
+            inviteeEmail={tenantToInvite.email}
+            inviteePhone={tenantToInvite.phoneNumber}
+            onSuccess={() => {
+              queryClient.invalidateQueries({ queryKey: ['tenants', selectedPropertyId] });
+            }}
+          />
+        )}
       </div>
     </ApplicationLayout>
   );

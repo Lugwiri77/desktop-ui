@@ -77,17 +77,18 @@ export const GET_PROPERTY = `
 export const GET_PROPERTY_STATISTICS = `
   query GetPropertyStatistics($propertyId: String!) {
     getPropertyStatistics(propertyId: $propertyId) {
+      propertyId
+      propertyName
+      propertyType
       totalUnits
+      actualUnits
       occupiedUnits
-      vacantUnits
-      maintenanceUnits
+      availableUnits
       totalTenants
       activeTenants
-      todaysExpectedVisitors
-      todaysCheckedInVisitors
       totalParkingSpaces
-      availableParkingSpaces
-      occupiedParkingSpaces
+      availableParking
+      currentVisitors
     }
   }
 `;
@@ -448,8 +449,20 @@ export const CREATE_VISITOR_PRE_REGISTRATION = `
 // ============================================================================
 
 export const CREATE_PARKING_SPACE = `
-  mutation CreateParkingSpace($input: CreateParkingSpaceInput!) {
-    createParkingSpace(input: $input) {
+  mutation CreateParkingSpace(
+    $propertyId: String!,
+    $spaceNumber: String!,
+    $parkingType: ParkingSpaceType!,
+    $floorLevel: String,
+    $section: String
+  ) {
+    createParkingSpace(
+      propertyId: $propertyId,
+      spaceNumber: $spaceNumber,
+      parkingType: $parkingType,
+      floorLevel: $floorLevel,
+      section: $section
+    ) {
       success
       message
       id
@@ -458,8 +471,16 @@ export const CREATE_PARKING_SPACE = `
 `;
 
 export const ASSIGN_PARKING_SPACE = `
-  mutation AssignParkingSpace($input: AssignParkingSpaceInput!) {
-    assignParkingSpace(input: $input) {
+  mutation AssignParkingSpace(
+    $parkingSpaceId: String!,
+    $unitId: String,
+    $tenantId: String
+  ) {
+    assignParkingSpace(
+      parkingSpaceId: $parkingSpaceId,
+      unitId: $unitId,
+      tenantId: $tenantId
+    ) {
       success
       message
     }
@@ -592,12 +613,22 @@ export async function getAvailableParkingSpaces(propertyId: string): Promise<Typ
 }
 
 export async function createParkingSpace(input: Types.CreateParkingSpaceInput): Promise<Types.RealEstateOperationResponse> {
-  const data = await graphql<{ createParkingSpace: Types.RealEstateOperationResponse }>(CREATE_PARKING_SPACE, { input });
+  const data = await graphql<{ createParkingSpace: Types.RealEstateOperationResponse }>(CREATE_PARKING_SPACE, {
+    propertyId: input.propertyId,
+    spaceNumber: input.spaceNumber,
+    parkingType: input.parkingType,
+    floorLevel: input.floorLevel,
+    section: input.section,
+  });
   return data.createParkingSpace;
 }
 
 export async function assignParkingSpace(input: Types.AssignParkingSpaceInput): Promise<Types.RealEstateOperationResponse> {
-  const data = await graphql<{ assignParkingSpace: Types.RealEstateOperationResponse }>(ASSIGN_PARKING_SPACE, { input });
+  const data = await graphql<{ assignParkingSpace: Types.RealEstateOperationResponse }>(ASSIGN_PARKING_SPACE, {
+    parkingSpaceId: input.parkingSpaceId,
+    unitId: input.unitId,
+    tenantId: input.tenantId,
+  });
   return data.assignParkingSpace;
 }
 

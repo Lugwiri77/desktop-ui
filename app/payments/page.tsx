@@ -31,6 +31,13 @@ import {
   CreditCardIcon,
   ArrowTrendingUpIcon,
 } from '@heroicons/react/20/solid';
+import { formatCurrency, formatDate } from '@/lib/formatting-utils';
+import {
+  getPaymentStatusColor,
+  getPaymentStatusLabel,
+  getPaymentMethodLabel,
+  type PaymentStatus as UtilPaymentStatus,
+} from '@/lib/payment-utils';
 
 interface StatCardProps {
   title: string;
@@ -85,61 +92,21 @@ function StatCard({ title, value, subtitle, icon: Icon, trend, color = 'blue' }:
 }
 
 function getPaymentStatusBadge(status: PaymentStatus) {
-  switch (status) {
-    case 'COMPLETED':
-      return <Badge color="green">Completed</Badge>;
-    case 'PENDING':
-      return <Badge color="yellow">Pending</Badge>;
-    case 'FAILED':
-      return <Badge color="red">Failed</Badge>;
-    case 'CANCELLED':
-      return <Badge color="zinc">Cancelled</Badge>;
-    case 'REFUNDED':
-      return <Badge color="blue">Refunded</Badge>;
-    default:
-      return <Badge color="zinc">{status}</Badge>;
-  }
+  // Map GraphQL status to util status (handle case differences)
+  const utilStatus = status.toLowerCase() as UtilPaymentStatus;
+  const color = getPaymentStatusColor(utilStatus);
+  const label = getPaymentStatusLabel(utilStatus);
+  return <Badge color={color}>{label}</Badge>;
 }
 
 function getPaymentMethodDisplay(method: PaymentMethod): string {
-  switch (method) {
-    case 'MPESA':
-      return 'M-Pesa';
-    case 'BANK_TRANSFER':
-      return 'Bank Transfer';
-    case 'CARD':
-      return 'Card';
-    case 'CASH':
-      return 'Cash';
-    case 'WALLET':
-      return 'Wallet';
-    case 'AIRTEL_MONEY':
-      return 'Airtel Money';
-    default:
-      return method;
-  }
-}
+  // Handle additional payment methods not in utils
+  if (method === 'BANK_TRANSFER') return 'Bank Transfer';
+  if (method === 'WALLET') return 'Wallet';
+  if (method === 'AIRTEL_MONEY') return 'Airtel Money';
 
-function formatCurrency(amount: string, currency: string = 'KES'): string {
-  const num = parseFloat(amount);
-  if (isNaN(num)) return amount;
-
-  return new Intl.NumberFormat('en-KE', {
-    style: 'currency',
-    currency: currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(num);
-}
-
-function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('en-KE', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  // Use utility function for standard methods
+  return getPaymentMethodLabel(method as any) || method;
 }
 
 export default function PaymentDashboardPage() {
@@ -454,7 +421,7 @@ export default function PaymentDashboardPage() {
                     </td>
                     <td className="whitespace-nowrap px-6 py-4">
                       <Text className="text-sm text-zinc-500 dark:text-zinc-400">
-                        {formatDate(transaction.createdAt)}
+                        {formatDate(transaction.createdAt, 'datetime')}
                       </Text>
                     </td>
                     <td className="whitespace-nowrap px-6 py-4">

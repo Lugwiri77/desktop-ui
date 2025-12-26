@@ -68,6 +68,12 @@ export default function DashboardPage() {
       return;
     }
 
+    // Redirect real estate administrators to property management dashboard
+    if (info.realEstateBusinessSubcategory && isAdministrator(info.userRole)) {
+      router.push('/property-management');
+      return;
+    }
+
     setUserInfo(info);
   }, [router]);
 

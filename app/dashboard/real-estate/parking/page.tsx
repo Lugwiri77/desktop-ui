@@ -279,15 +279,17 @@ export default function ParkingPage() {
             <div className="mt-4 grid grid-cols-3 gap-4">
               <div className="bg-white border border-gray-200 rounded-lg p-4">
                 <div className="text-sm text-gray-600">Total Spaces</div>
-                <div className="text-2xl font-bold text-gray-900">{stats.totalParkingSpaces}</div>
+                <div className="text-2xl font-bold text-gray-900">{stats.totalParkingSpaces || 0}</div>
               </div>
               <div className="bg-white border border-lime-200 rounded-lg p-4">
                 <div className="text-sm text-gray-600">Available</div>
-                <div className="text-2xl font-bold text-lime-600">{stats.availableParkingSpaces}</div>
+                <div className="text-2xl font-bold text-lime-600">{stats.availableParking || 0}</div>
               </div>
               <div className="bg-white border border-red-200 rounded-lg p-4">
                 <div className="text-sm text-gray-600">Occupied</div>
-                <div className="text-2xl font-bold text-red-600">{stats.occupiedParkingSpaces}</div>
+                <div className="text-2xl font-bold text-red-600">
+                  {(stats.totalParkingSpaces || 0) - (stats.availableParking || 0)}
+                </div>
               </div>
             </div>
           )}

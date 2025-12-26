@@ -18,55 +18,27 @@ import type {
   PaymentAccount,
 } from '@/lib/graphql/payments/types';
 import { MagnifyingGlassIcon, ClipboardDocumentListIcon } from '@heroicons/react/20/solid';
-
-function formatCurrency(amount: string, currency: string = 'KES'): string {
-  const num = parseFloat(amount);
-  if (isNaN(num)) return amount;
-  return new Intl.NumberFormat('en-KE', {
-    style: 'currency',
-    currency: currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(num);
-}
-
-function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleString('en-KE', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-}
+import { formatCurrency, formatDate } from '@/lib/formatting-utils';
+import {
+  getPaymentStatusColor,
+  getPaymentStatusLabel,
+  getPaymentMethodLabel,
+  type PaymentStatus as UtilPaymentStatus,
+} from '@/lib/payment-utils';
 
 function getStatusBadge(status: PaymentStatus) {
-  switch (status) {
-    case 'COMPLETED':
-      return <Badge color="green">Completed</Badge>;
-    case 'PENDING':
-      return <Badge color="yellow">Pending</Badge>;
-    case 'FAILED':
-      return <Badge color="red">Failed</Badge>;
-    case 'CANCELLED':
-      return <Badge color="zinc">Cancelled</Badge>;
-    case 'REFUNDED':
-      return <Badge color="blue">Refunded</Badge>;
-    default:
-      return <Badge>{status}</Badge>;
-  }
+  const utilStatus = status.toLowerCase() as UtilPaymentStatus;
+  const color = getPaymentStatusColor(utilStatus);
+  const label = getPaymentStatusLabel(utilStatus);
+  return <Badge color={color}>{label}</Badge>;
 }
 
 function getMethodDisplay(method: PaymentMethod): string {
-  const map: Record<PaymentMethod, string> = {
-    MPESA: 'M-Pesa',
-    BANK_TRANSFER: 'Bank Transfer',
-    CARD: 'Card',
-    CASH: 'Cash',
-    WALLET: 'Wallet',
-    AIRTEL_MONEY: 'Airtel Money',
-  };
-  return map[method] || method;
+  // Handle additional payment methods not in utils
+  if (method === 'BANK_TRANSFER') return 'Bank Transfer';
+  if (method === 'WALLET') return 'Wallet';
+  if (method === 'AIRTEL_MONEY') return 'Airtel Money';
+  return getPaymentMethodLabel(method as any) || method;
 }
 
 export default function TransactionsPage() {
@@ -324,7 +296,7 @@ export default function TransactionsPage() {
                     </td>
                     <td className="px-6 py-4">{getStatusBadge(tx.status)}</td>
                     <td className="px-6 py-4">
-                      <Text className="text-sm text-zinc-500">{formatDate(tx.createdAt)}</Text>
+                      <Text className="text-sm text-zinc-500">{formatDate(tx.createdAt, 'datetime')}</Text>
                     </td>
                   </tr>
                 ))}

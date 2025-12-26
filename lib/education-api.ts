@@ -1176,3 +1176,481 @@ export async function renewBook(loanId: string): Promise<Types.BookLoan> {
   );
   return data.renewBook;
 }
+
+// ============================================================================
+// SCHOOL FEES QUERIES
+// ============================================================================
+
+/**
+ * Get fee structures for an institution
+ * Backend: get_fee_structures
+ */
+export const GET_FEE_STRUCTURES = `
+  query GetFeeStructures(
+    $institutionId: String!
+    $academicYear: String
+    $term: AcademicTermEnum
+    $isActive: Boolean
+  ) {
+    getFeeStructures(
+      institutionId: $institutionId
+      academicYear: $academicYear
+      term: $term
+      isActive: $isActive
+    ) {
+      id
+      institutionId
+      feeName
+      feeType
+      description
+      amountKes
+      academicYear
+      term
+      gradeLevel
+      isMandatory
+      dueDaysAfterTermStart
+      lateFeePercentage
+      lateFeeFlatKes
+      applyLateFeeAfterDays
+      isActive
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+/**
+ * Get fee statistics for dashboard
+ * Backend: get_fee_statistics
+ */
+export const GET_FEE_STATISTICS = `
+  query GetFeeStatistics(
+    $institutionId: String!
+    $academicYear: String!
+    $term: AcademicTermEnum!
+  ) {
+    getFeeStatistics(
+      institutionId: $institutionId
+      academicYear: $academicYear
+      term: $term
+    ) {
+      institutionId
+      academicYear
+      term
+      totalStudents
+      totalFeesAssigned
+      totalAmountKes
+      totalCollectedKes
+      totalPendingKes
+      totalWaivedKes
+      studentsWithArrears
+      averageFeePerStudent
+    }
+  }
+`;
+
+/**
+ * Get student fee assignments
+ * Backend: get_student_fee_assignments
+ */
+export const GET_STUDENT_FEE_ASSIGNMENTS = `
+  query GetStudentFeeAssignments(
+    $studentId: String!
+    $academicYear: String
+    $term: AcademicTermEnum
+  ) {
+    getStudentFeeAssignments(
+      studentId: $studentId
+      academicYear: $academicYear
+      term: $term
+    ) {
+      id
+      studentId
+      institutionId
+      feeStructureId
+      feeStructureName
+      academicYear
+      term
+      originalAmountKes
+      discountAmountKes
+      discountPercentage
+      finalAmountKes
+      discountReason
+      invoiceId
+      invoiceGeneratedAt
+      isWaived
+      waiverReason
+      assignedAt
+      updatedAt
+    }
+  }
+`;
+
+/**
+ * Get all fee assignments for an institution
+ * Backend: get_all_fee_assignments
+ */
+export const GET_ALL_FEE_ASSIGNMENTS = `
+  query GetAllFeeAssignments(
+    $institutionId: String!
+    $academicYear: String
+    $term: AcademicTermEnum
+    $gradeLevel: String
+  ) {
+    getAllFeeAssignments(
+      institutionId: $institutionId
+      academicYear: $academicYear
+      term: $term
+      gradeLevel: $gradeLevel
+    ) {
+      id
+      studentId
+      studentName
+      gradeLevel
+      feeStructureName
+      academicYear
+      term
+      originalAmountKes
+      discountAmountKes
+      finalAmountKes
+      invoiceId
+      isWaived
+      assignedAt
+    }
+  }
+`;
+
+// ============================================================================
+// SCHOOL FEES MUTATIONS
+// ============================================================================
+
+/**
+ * Create a new fee structure
+ * Backend: create_fee_structure
+ */
+export const CREATE_FEE_STRUCTURE = `
+  mutation CreateFeeStructure($input: CreateFeeStructureInput!) {
+    createFeeStructure(input: $input) {
+      id
+      institutionId
+      feeName
+      feeType
+      description
+      amountKes
+      academicYear
+      term
+      gradeLevel
+      isMandatory
+      dueDaysAfterTermStart
+      lateFeePercentage
+      lateFeeFlatKes
+      applyLateFeeAfterDays
+      isActive
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+/**
+ * Delete (deactivate) a fee structure
+ * Backend: delete_fee_structure
+ */
+export const DELETE_FEE_STRUCTURE = `
+  mutation DeleteFeeStructure($feeStructureId: String!) {
+    deleteFeeStructure(feeStructureId: $feeStructureId) {
+      success
+      message
+    }
+  }
+`;
+
+/**
+ * Assign a fee to a specific student
+ * Backend: assign_fee_to_student
+ */
+export const ASSIGN_FEE_TO_STUDENT = `
+  mutation AssignFeeToStudent($input: AssignFeeToStudentInput!) {
+    assignFeeToStudent(input: $input) {
+      id
+      studentId
+      institutionId
+      feeStructureId
+      feeStructureName
+      academicYear
+      term
+      originalAmountKes
+      discountAmountKes
+      discountPercentage
+      finalAmountKes
+      discountReason
+      assignedAt
+    }
+  }
+`;
+
+/**
+ * Bulk assign fees to all students in a grade level
+ * Backend: bulk_assign_fees_by_grade
+ */
+export const BULK_ASSIGN_FEES_BY_GRADE = `
+  mutation BulkAssignFeesByGrade($input: BulkAssignFeesByGradeInput!) {
+    bulkAssignFeesByGrade(input: $input) {
+      studentsAssigned
+      feesAssigned
+      totalAmountKes
+    }
+  }
+`;
+
+/**
+ * Waive a fee for a student
+ * Backend: waive_fee
+ */
+export const WAIVE_FEE = `
+  mutation WaiveFee($input: WaiveFeeInput!) {
+    waiveFee(input: $input) {
+      success
+      message
+    }
+  }
+`;
+
+/**
+ * Apply discount to a student's fee assignment
+ * Backend: apply_discount_to_fee
+ */
+export const APPLY_DISCOUNT_TO_FEE = `
+  mutation ApplyDiscountToFee($input: ApplyDiscountInput!) {
+    applyDiscountToFee(input: $input) {
+      id
+      studentId
+      feeStructureId
+      feeStructureName
+      originalAmountKes
+      discountAmountKes
+      discountPercentage
+      finalAmountKes
+      discountReason
+      updatedAt
+    }
+  }
+`;
+
+/**
+ * Generate invoices for fee assignments (bulk)
+ * Backend: generate_fee_invoices
+ */
+export const GENERATE_FEE_INVOICES = `
+  mutation GenerateFeeInvoices($input: GenerateFeeInvoicesInput!) {
+    generateFeeInvoices(input: $input) {
+      invoicesGenerated
+      studentsAffected
+      totalAmountKes
+      invoiceIds
+    }
+  }
+`;
+
+// ============================================================================
+// SCHOOL FEES API FUNCTIONS
+// ============================================================================
+
+export async function getFeeStructures(
+  institutionId: string,
+  academicYear?: string,
+  term?: string,
+  isActive?: boolean
+) {
+  const data = await graphql<{ getFeeStructures: any[] }>(
+    GET_FEE_STRUCTURES,
+    { institutionId, academicYear, term, isActive }
+  );
+  return data.getFeeStructures;
+}
+
+export async function getFeeStatistics(
+  institutionId: string,
+  academicYear: string,
+  term: string
+) {
+  const data = await graphql<{ getFeeStatistics: any }>(
+    GET_FEE_STATISTICS,
+    { institutionId, academicYear, term }
+  );
+  return data.getFeeStatistics;
+}
+
+export async function getStudentFeeAssignments(
+  studentId: string,
+  academicYear?: string,
+  term?: string
+) {
+  const data = await graphql<{ getStudentFeeAssignments: any[] }>(
+    GET_STUDENT_FEE_ASSIGNMENTS,
+    { studentId, academicYear, term }
+  );
+  return data.getStudentFeeAssignments;
+}
+
+export async function getAllFeeAssignments(
+  institutionId: string,
+  academicYear?: string,
+  term?: string,
+  gradeLevel?: string
+) {
+  const data = await graphql<{ getAllFeeAssignments: any[] }>(
+    GET_ALL_FEE_ASSIGNMENTS,
+    { institutionId, academicYear, term, gradeLevel }
+  );
+  return data.getAllFeeAssignments;
+}
+
+export async function createFeeStructure(input: any) {
+  const data = await graphql<{ createFeeStructure: any }>(
+    CREATE_FEE_STRUCTURE,
+    { input }
+  );
+  return data.createFeeStructure;
+}
+
+export async function deleteFeeStructure(feeStructureId: string) {
+  const data = await graphql<{ deleteFeeStructure: MutationResponse }>(
+    DELETE_FEE_STRUCTURE,
+    { feeStructureId }
+  );
+  return data.deleteFeeStructure;
+}
+
+export async function assignFeeToStudent(input: any) {
+  const data = await graphql<{ assignFeeToStudent: any }>(
+    ASSIGN_FEE_TO_STUDENT,
+    { input }
+  );
+  return data.assignFeeToStudent;
+}
+
+export async function bulkAssignFeesByGrade(input: any) {
+  const data = await graphql<{ bulkAssignFeesByGrade: any }>(
+    BULK_ASSIGN_FEES_BY_GRADE,
+    { input }
+  );
+  return data.bulkAssignFeesByGrade;
+}
+
+export async function waiveFee(input: any) {
+  const data = await graphql<{ waiveFee: MutationResponse }>(
+    WAIVE_FEE,
+    { input }
+  );
+  return data.waiveFee;
+}
+
+export async function applyDiscountToFee(input: any) {
+  const data = await graphql<{ applyDiscountToFee: any }>(
+    APPLY_DISCOUNT_TO_FEE,
+    { input }
+  );
+  return data.applyDiscountToFee;
+}
+
+export async function generateFeeInvoices(input: any) {
+  const data = await graphql<{ generateFeeInvoices: any }>(
+    GENERATE_FEE_INVOICES,
+    { input }
+  );
+  return data.generateFeeInvoices;
+}
+
+// ============================================================================
+// DASHBOARD ANALYTICS QUERIES
+// ============================================================================
+
+const GET_FEE_COLLECTION_TRENDS = `
+  query GetFeeCollectionTrends($institutionId: String!, $academicYear: String!) {
+    getFeeCollectionTrends(institutionId: $institutionId, academicYear: $academicYear) {
+      month
+      collected
+      pending
+      target
+    }
+  }
+`;
+
+const GET_CLASS_PERFORMANCE = `
+  query GetClassPerformance($institutionId: String!, $academicYear: String!, $term: AcademicTermEnum!) {
+    getClassPerformance(institutionId: $institutionId, academicYear: $academicYear, term: $term) {
+      className
+      collected
+      pending
+      total
+      percentage
+    }
+  }
+`;
+
+const GET_RECENT_FEE_TRANSACTIONS = `
+  query GetRecentFeeTransactions($institutionId: String!, $limit: Int) {
+    getRecentFeeTransactions(institutionId: $institutionId, limit: $limit) {
+      id
+      studentName
+      amount
+      feeType
+      date
+      status
+    }
+  }
+`;
+
+export async function getFeeCollectionTrends(
+  institutionId: string,
+  academicYear: string
+) {
+  const data = await graphql<{ getFeeCollectionTrends: any }>(
+    GET_FEE_COLLECTION_TRENDS,
+    { institutionId, academicYear }
+  );
+  return data.getFeeCollectionTrends;
+}
+
+export async function getClassPerformance(
+  institutionId: string,
+  academicYear: string,
+  term: string
+) {
+  const data = await graphql<{ getClassPerformance: any }>(
+    GET_CLASS_PERFORMANCE,
+    { institutionId, academicYear, term }
+  );
+  return data.getClassPerformance;
+}
+
+export async function getRecentFeeTransactions(
+  institutionId: string,
+  limit?: number
+) {
+  const data = await graphql<{ getRecentFeeTransactions: any }>(
+    GET_RECENT_FEE_TRANSACTIONS,
+    { institutionId, limit }
+  );
+  return data.getRecentFeeTransactions;
+}
+
+const GET_GRADE_LEVELS = `
+  query GetGradeLevels($institutionId: String!) {
+    getGradeLevels(institutionId: $institutionId) {
+      gradeLevel
+      classSection
+      name
+      studentCount
+    }
+  }
+`;
+
+export async function getGradeLevels(institutionId: string) {
+  const data = await graphql<{ getGradeLevels: any }>(
+    GET_GRADE_LEVELS,
+    { institutionId }
+  );
+  return data.getGradeLevels;
+}

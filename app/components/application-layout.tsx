@@ -177,6 +177,11 @@ export function ApplicationLayout({ children, userInfo, onLogout, roleDisplayNam
                   <HomeIcon />
                   <SidebarLabel>Dashboard</SidebarLabel>
                 </SidebarItem>
+              ) : isEducationInstitution(userInfo.accountType as AccountType, userInfo.organizationType) ? (
+                <SidebarItem href="/education" current={pathname === '/education'}>
+                  <HomeIcon />
+                  <SidebarLabel>Dashboard</SidebarLabel>
+                </SidebarItem>
               ) : (
                 <SidebarItem href="/dashboard" current={pathname === '/dashboard'}>
                   <HomeIcon />
@@ -254,6 +259,14 @@ export function ApplicationLayout({ children, userInfo, onLogout, roleDisplayNam
                   </SidebarItem>
                 )}
 
+                {/* Rent Automation - Administrators only */}
+                {userInfo.isAdministrator && (
+                  <SidebarItem href="/property-management/rent-automation" current={pathname?.startsWith('/property-management/rent-automation')}>
+                    <CalendarIcon />
+                    <SidebarLabel>Rent Automation</SidebarLabel>
+                  </SidebarItem>
+                )}
+
                 {/* Units - Administrators only */}
                 {userInfo.isAdministrator && (
                   <SidebarItem href="/dashboard/real-estate/units" current={pathname?.startsWith('/dashboard/real-estate/units')}>
@@ -307,6 +320,12 @@ export function ApplicationLayout({ children, userInfo, onLogout, roleDisplayNam
                   <SidebarLabel>Payment Dashboard</SidebarLabel>
                 </SidebarItem>
 
+                {/* Wallet */}
+                <SidebarItem href="/wallet" current={pathname?.startsWith('/wallet')}>
+                  <WalletIcon />
+                  <SidebarLabel>Wallet</SidebarLabel>
+                </SidebarItem>
+
                 {/* Payment Accounts */}
                 <SidebarItem href="/payments/accounts" current={pathname?.startsWith('/payments/accounts')}>
                   <CreditCardIcon />
@@ -338,6 +357,25 @@ export function ApplicationLayout({ children, userInfo, onLogout, roleDisplayNam
                   </svg>
                   <SidebarLabel>Reconciliation</SidebarLabel>
                 </SidebarItem>
+
+                {/* School Fees - for educational institutions */}
+                {isEducationInstitution(userInfo.accountType as AccountType, userInfo.organizationType) && (
+                  <SidebarItem href="/school-fees" current={pathname?.startsWith('/school-fees')}>
+                    <AcademicCapIcon />
+                    <SidebarLabel>School Fees</SidebarLabel>
+                  </SidebarItem>
+                )}
+
+                {/* Church Giving - for churches/religious organizations */}
+                {(userInfo.organizationType?.toLowerCase().includes('church') ||
+                  userInfo.organizationType?.toLowerCase().includes('religious')) && (
+                  <SidebarItem href="/church-giving" current={pathname?.startsWith('/church-giving')}>
+                    <svg className="size-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                    </svg>
+                    <SidebarLabel>Church Giving</SidebarLabel>
+                  </SidebarItem>
+                )}
               </SidebarSection>
             )}
 

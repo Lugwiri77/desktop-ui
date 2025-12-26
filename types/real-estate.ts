@@ -129,17 +129,18 @@ export interface CreatePropertyInput {
 }
 
 export interface PropertyStatistics {
+  propertyId: string;
+  propertyName: string;
+  propertyType: string;
   totalUnits: number;
-  occupiedUnits: number;
-  vacantUnits: number;
-  maintenanceUnits: number;
-  totalTenants: number;
-  activeTenants: number;
-  todaysExpectedVisitors: number;
-  todaysCheckedInVisitors: number;
-  totalParkingSpaces: number;
-  availableParkingSpaces: number;
-  occupiedParkingSpaces: number;
+  actualUnits?: number;
+  occupiedUnits?: number;
+  availableUnits?: number;
+  totalTenants?: number;
+  activeTenants?: number;
+  totalParkingSpaces?: number;
+  availableParking?: number;
+  currentVisitors?: number;
 }
 
 // ============================================================================

@@ -14,44 +14,24 @@ import { Link } from '../../components/link';
 import { getInvoices, getPaymentAccounts } from '@/lib/graphql/payments/queries';
 import type { Invoice, InvoiceStatus, PaymentAccount } from '@/lib/graphql/payments/types';
 import { PlusIcon, MagnifyingGlassIcon, DocumentDuplicateIcon } from '@heroicons/react/20/solid';
-
-function formatCurrency(amount: string, currency: string = 'KES'): string {
-  const num = parseFloat(amount);
-  if (isNaN(num)) return amount;
-  return new Intl.NumberFormat('en-KE', {
-    style: 'currency',
-    currency: currency,
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  }).format(num);
-}
-
-function formatDate(dateString: string): string {
-  return new Date(dateString).toLocaleDateString('en-KE', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-  });
-}
+import { formatCurrency, formatDate } from '@/lib/formatting-utils';
+import {
+  getInvoiceStatusColor,
+  getInvoiceStatusLabel,
+  type InvoiceStatus as UtilInvoiceStatus,
+} from '@/lib/payment-utils';
 
 function getInvoiceStatusBadge(status: InvoiceStatus, dueDate?: string) {
+  // Check if pending invoice is overdue
   if (status === 'PENDING' && dueDate && new Date(dueDate) < new Date()) {
     return <Badge color="red">Overdue</Badge>;
   }
-  switch (status) {
-    case 'PAID':
-      return <Badge color="green">Paid</Badge>;
-    case 'PENDING':
-      return <Badge color="yellow">Pending</Badge>;
-    case 'OVERDUE':
-      return <Badge color="red">Overdue</Badge>;
-    case 'DRAFT':
-      return <Badge color="zinc">Draft</Badge>;
-    case 'CANCELLED':
-      return <Badge color="zinc">Cancelled</Badge>;
-    default:
-      return <Badge color="zinc">{status}</Badge>;
-  }
+
+  // Map GraphQL status to util status
+  const utilStatus = status.toLowerCase() as UtilInvoiceStatus;
+  const color = getInvoiceStatusColor(utilStatus);
+  const label = getInvoiceStatusLabel(utilStatus);
+  return <Badge color={color}>{label}</Badge>;
 }
 
 export default function InvoicesPage() {
