@@ -501,10 +501,11 @@ export interface StudentPickupApproval {
 /**
  * Get all classes for an institution
  * Backend: get_institution_classes
+ * Supports optional filtering by academic year
  */
 export const GET_INSTITUTION_CLASSES = `
-  query GetInstitutionClasses($institutionId: String!) {
-    getInstitutionClasses(institutionId: $institutionId) {
+  query GetInstitutionClasses($institutionId: String!, $academicYear: String) {
+    getInstitutionClasses(institutionId: $institutionId, academicYear: $academicYear) {
       id
       institutionId
       className
@@ -512,10 +513,10 @@ export const GET_INSTITUTION_CLASSES = `
       section
       academicYear
       maxStudents
+      currentStudents
       classTeacherId
       classTeacherName
-      createdAt
-      updatedAt
+      isActive
     }
   }
 `;
@@ -611,9 +612,10 @@ export const ADD_CLASS = `
       section
       academicYear
       maxStudents
+      currentStudents
       classTeacherId
-      createdAt
-      updatedAt
+      classTeacherName
+      isActive
     }
   }
 `;
@@ -689,21 +691,28 @@ export const DELETE_TIMETABLE_SLOT = `
  * Backend: search_library_books
  */
 export const SEARCH_LIBRARY_BOOKS = `
-  query SearchLibraryBooks($institutionId: String!, $searchTerm: String, $category: String, $availableOnly: Boolean) {
-    searchLibraryBooks(institutionId: $institutionId, searchTerm: $searchTerm, category: $category, availableOnly: $availableOnly) {
+  query SearchLibraryBooks($institutionId: String!, $searchQuery: String, $category: String, $limit: Int) {
+    searchLibraryBooks(institutionId: $institutionId, searchQuery: $searchQuery, category: $category, limit: $limit) {
       id
       institutionId
       title
+      subtitle
       authors
       isbn
       publisher
-      publicationYear
+      publicationDate
+      edition
+      language
       category
+      subcategory
+      deweyDecimal
       totalCopies
       availableCopies
+      location
+      description
+      coverImageUrl
+      pageCount
       isActive
-      createdAt
-      updatedAt
     }
   }
 `;
@@ -1023,13 +1032,17 @@ import type * as Types from '@/types/education';
 
 /**
  * Execute timetable queries
+ * Get all classes for an institution, optionally filtered by academic year
  */
-export async function getInstitutionClasses(institutionId: string): Promise<Types.InstitutionClass[]> {
+export async function getInstitutionClasses(
+  institutionId: string,
+  academicYear?: string
+): Promise<Types.InstitutionClass[]> {
   const data = await graphql<{ getInstitutionClasses: Types.InstitutionClass[] }>(
     GET_INSTITUTION_CLASSES,
-    { institutionId }
+    { institutionId, academicYear }
   );
-  return data.getInstitutionClasses;
+  return data.getInstitutionClasses || [];
 }
 
 export async function getInstitutionRooms(institutionId: string): Promise<Types.InstitutionRoom[]> {
@@ -1237,14 +1250,15 @@ export const GET_FEE_STATISTICS = `
       institutionId
       academicYear
       term
-      totalStudents
-      totalFeesAssigned
-      totalAmountKes
+      totalStudentsWithFees
+      totalFeeAssignments
+      totalExpectedKes
       totalCollectedKes
       totalPendingKes
-      totalWaivedKes
+      totalOverdueKes
       studentsWithArrears
-      averageFeePerStudent
+      totalDiscountsGivenKes
+      averageDiscountPercentage
     }
   }
 `;
@@ -1347,7 +1361,6 @@ export const CREATE_FEE_STRUCTURE = `
       applyLateFeeAfterDays
       isActive
       createdAt
-      updatedAt
     }
   }
 `;
@@ -1653,4 +1666,44 @@ export async function getGradeLevels(institutionId: string) {
     { institutionId }
   );
   return data.getGradeLevels;
+}
+
+// ============================================================================
+// CLASS MANAGEMENT
+// ============================================================================
+// Note: GET_INSTITUTION_CLASSES is already defined at line 506
+
+export interface InstitutionClass {
+  id: string;
+  institutionId: string;
+  className: string;
+  gradeLevel: string;
+  section?: string;
+  classTeacherId?: string;
+  classTeacherName?: string;
+  maxStudents?: number;
+  currentStudents: number;
+  academicYear: string;
+  isActive: boolean;
+}
+
+// Note: getInstitutionClasses function is already defined at line 1031
+// Note: ADD_CLASS GraphQL constant is already defined earlier in the file (line 607)
+
+export interface AddClassInput {
+  institutionId: string;
+  className: string;
+  gradeLevel: string;
+  section?: string;
+  academicYear: string;
+  maxStudents?: number;
+  classTeacherId?: string;
+}
+
+export async function addClass(input: AddClassInput): Promise<InstitutionClass> {
+  const data = await graphql<{ addClass: InstitutionClass }>(
+    ADD_CLASS,
+    { input }
+  );
+  return data.addClass;
 }

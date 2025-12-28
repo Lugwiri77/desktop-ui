@@ -13,7 +13,7 @@ import { Select } from '@/app/components/select';
 import { isAuthenticated, logout } from '@/lib/api';
 import { loadUserInfo, isEducationInstitution, isPrimaryOrSecondarySchool, type UserInfo } from '@/lib/roles';
 import { formatCurrency } from '@/lib/formatting-utils';
-import { getFeeCollectionTrends, getClassPerformance, getRecentFeeTransactions } from '@/lib/education-api';
+import { getFeeCollectionTrends, getClassPerformance, getRecentFeeTransactions, getFeeStatistics, graphql } from '@/lib/education-api';
 import {
   AcademicCapIcon,
   UserGroupIcon,
@@ -155,7 +155,7 @@ export default function EducationDashboard() {
   const loadDashboardData = async (info: UserInfo) => {
     setLoading(true);
     try {
-      if (!info.institutionAccountId) {
+      if (!info.organizationId) {
         console.error('No institution ID found');
         return;
       }
@@ -165,93 +165,73 @@ export default function EducationDashboard() {
       const term = selectedTerm;
 
       const [feeStatsData, institutionStatsData, trendsData, classData, transactionsData] = await Promise.all([
-        fetch('/api/graphql', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          },
-          body: JSON.stringify({
-            query: `
-              query GetFeeStatistics($institutionId: String!, $academicYear: String!, $term: AcademicTermEnum!) {
-                getFeeStatistics(institutionId: $institutionId, academicYear: $academicYear, term: $term) {
-                  totalStudents
-                  totalFeesAssigned
-                  totalCollectedKes
-                  totalPendingKes
-                  studentsWithArrears
-                  averageFeePerStudent
-                }
-              }
-            `,
-            variables: { institutionId: info.institutionAccountId, academicYear, term },
+        // Fee Statistics
+        getFeeStatistics(info.organizationId, academicYear, term)
+          .catch(err => {
+            console.error('Failed to load fee statistics:', err);
+            return null;
           }),
-        }).then(r => r.json()),
 
-        fetch('/api/graphql', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          },
-          body: JSON.stringify({
-            query: `
-              query GetInstitutionStatistics($institutionId: String!) {
-                getInstitutionStatistics(institutionId: $institutionId) {
-                  totalStudents
-                  activeStudents
-                  studentsCheckedIn
-                  studentsOnCampus
-                }
-              }
-            `,
-            variables: { institutionId: info.institutionAccountId },
+        // Institution Statistics
+        graphql<{ getInstitutionStatistics: any }>(`
+          query GetInstitutionStatistics($institutionId: String!) {
+            getInstitutionStatistics(institutionId: $institutionId) {
+              totalStudents
+              studentsCheckedIn
+              pendingApprovals
+              todaysActivities
+            }
+          }
+        `, { institutionId: info.organizationId })
+          .then(data => data.getInstitutionStatistics)
+          .catch(err => {
+            console.error('Failed to load institution statistics:', err);
+            return null;
           }),
-        }).then(r => r.json()),
 
         // Collection Trends
-        getFeeCollectionTrends(info.institutionAccountId, academicYear)
+        getFeeCollectionTrends(info.organizationId, academicYear)
           .catch(err => {
             console.error('Failed to load collection trends:', err);
             return [];
           }),
 
         // Class Performance
-        getClassPerformance(info.institutionAccountId, academicYear, term)
+        getClassPerformance(info.organizationId, academicYear, term)
           .catch(err => {
             console.error('Failed to load class performance:', err);
             return [];
           }),
 
         // Recent Transactions
-        getRecentFeeTransactions(info.institutionAccountId, 10)
+        getRecentFeeTransactions(info.organizationId, 10)
           .catch(err => {
             console.error('Failed to load recent transactions:', err);
             return [];
           }),
       ]);
 
-      if (feeStatsData?.data?.getFeeStatistics) {
-        const stats = feeStatsData.data.getFeeStatistics;
+      if (feeStatsData) {
         setFeeStatistics({
-          totalCollected: stats.totalCollectedKes || 0,
-          totalPending: stats.totalPendingKes || 0,
-          totalOverdue: 0,
-          studentsWithArrears: stats.studentsWithArrears || 0,
-          totalStudents: stats.totalStudents || 0,
-          totalFeesAssigned: stats.totalFeesAssigned || 0,
-          averageFeePerStudent: stats.averageFeePerStudent || 0,
+          totalCollected: feeStatsData.totalCollectedKes || 0,
+          totalPending: feeStatsData.totalPendingKes || 0,
+          totalOverdue: feeStatsData.totalOverdueKes || 0,
+          studentsWithArrears: feeStatsData.studentsWithArrears || 0,
+          totalStudents: feeStatsData.totalStudentsWithFees || 0,
+          totalFeesAssigned: feeStatsData.totalFeeAssignments || 0,
+          averageFeePerStudent: feeStatsData.totalExpectedKes && feeStatsData.totalStudentsWithFees
+            ? feeStatsData.totalExpectedKes / feeStatsData.totalStudentsWithFees
+            : 0,
           currency: 'KES',
         });
       }
 
-      if (institutionStatsData?.data?.getInstitutionStatistics) {
-        const stats = institutionStatsData.data.getInstitutionStatistics;
+      if (institutionStatsData) {
         setInstitutionStats({
-          totalStudents: stats.totalStudents || 0,
-          activeStudents: stats.activeStudents || 0,
-          studentsCheckedIn: stats.studentsCheckedIn || 0,
-          studentsOnCampus: stats.studentsOnCampus || 0,
+          totalStudents: institutionStatsData.totalStudents || 0,
+          activeStudents: institutionStatsData.totalStudents || 0, // Use total students as fallback
+          studentsCheckedIn: institutionStatsData.studentsCheckedIn || 0,
+          studentsOnCampus: institutionStatsData.studentsCheckedIn || 0, // Use checked in as fallback
         });
       }
 

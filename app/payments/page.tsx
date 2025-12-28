@@ -12,17 +12,25 @@ import { Badge } from '../components/badge';
 import { Button } from '../components/button';
 import { Link } from '../components/link';
 import {
-  getPaymentStatistics,
-  getPaymentTransactions,
-  getPaymentAccounts,
-} from '@/lib/graphql/payments/queries';
-import type {
-  PaymentStatistics,
-  PaymentTransaction,
-  PaymentAccount,
-  PaymentStatus,
-  PaymentMethod,
-} from '@/lib/graphql/payments/types';
+  getPaymentAccountsByOwner,
+  getInvoicesByIssuer,
+  type PaymentAccount,
+  type Invoice,
+  InvoiceStatus,
+} from '@/lib/payments-api';
+
+// Statistics calculated from invoices
+interface InvoiceStatistics {
+  totalInvoices: number;
+  paidInvoices: number;
+  pendingInvoices: number;
+  overdueInvoices: number;
+  totalAmountKes: number;
+  paidAmountKes: number;
+  pendingAmountKes: number;
+  overdueAmountKes: number;
+}
+
 import {
   BanknotesIcon,
   ClockIcon,
@@ -32,12 +40,6 @@ import {
   ArrowTrendingUpIcon,
 } from '@heroicons/react/20/solid';
 import { formatCurrency, formatDate } from '@/lib/formatting-utils';
-import {
-  getPaymentStatusColor,
-  getPaymentStatusLabel,
-  getPaymentMethodLabel,
-  type PaymentStatus as UtilPaymentStatus,
-} from '@/lib/payment-utils';
 
 interface StatCardProps {
   title: string;
@@ -91,32 +93,34 @@ function StatCard({ title, value, subtitle, icon: Icon, trend, color = 'blue' }:
   );
 }
 
-function getPaymentStatusBadge(status: PaymentStatus) {
-  // Map GraphQL status to util status (handle case differences)
-  const utilStatus = status.toLowerCase() as UtilPaymentStatus;
-  const color = getPaymentStatusColor(utilStatus);
-  const label = getPaymentStatusLabel(utilStatus);
-  return <Badge color={color}>{label}</Badge>;
-}
-
-function getPaymentMethodDisplay(method: PaymentMethod): string {
-  // Handle additional payment methods not in utils
-  if (method === 'BANK_TRANSFER') return 'Bank Transfer';
-  if (method === 'WALLET') return 'Wallet';
-  if (method === 'AIRTEL_MONEY') return 'Airtel Money';
-
-  // Use utility function for standard methods
-  return getPaymentMethodLabel(method as any) || method;
+function getInvoiceStatusBadge(status: InvoiceStatus) {
+  const colorMap: Record<InvoiceStatus, 'green' | 'yellow' | 'red' | 'zinc'> = {
+    [InvoiceStatus.Paid]: 'green',
+    [InvoiceStatus.PartiallyPaid]: 'yellow',
+    [InvoiceStatus.Pending]: 'yellow',
+    [InvoiceStatus.Overdue]: 'red',
+    [InvoiceStatus.Cancelled]: 'zinc',
+    [InvoiceStatus.Refunded]: 'zinc',
+  };
+  const labelMap: Record<InvoiceStatus, string> = {
+    [InvoiceStatus.Paid]: 'Paid',
+    [InvoiceStatus.PartiallyPaid]: 'Partially Paid',
+    [InvoiceStatus.Pending]: 'Pending',
+    [InvoiceStatus.Overdue]: 'Overdue',
+    [InvoiceStatus.Cancelled]: 'Cancelled',
+    [InvoiceStatus.Refunded]: 'Refunded',
+  };
+  return <Badge color={colorMap[status]}>{labelMap[status]}</Badge>;
 }
 
 export default function PaymentDashboardPage() {
   const router = useRouter();
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
-  const [statistics, setStatistics] = useState<PaymentStatistics | null>(null);
-  const [recentTransactions, setRecentTransactions] = useState<PaymentTransaction[]>([]);
+  const [statistics, setStatistics] = useState<InvoiceStatistics | null>(null);
+  const [recentInvoices, setRecentInvoices] = useState<Invoice[]>([]);
   const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccount[]>([]);
   const [loadingStats, setLoadingStats] = useState(false);
-  const [loadingTransactions, setLoadingTransactions] = useState(false);
+  const [loadingInvoices, setLoadingInvoices] = useState(false);
   const [loadingAccounts, setLoadingAccounts] = useState(false);
 
   useEffect(() => {
@@ -142,17 +146,34 @@ export default function PaymentDashboardPage() {
     setUserInfo(info);
   }, [router]);
 
-  // Load payment statistics
+  // Load invoice statistics
   useEffect(() => {
     const loadStatistics = async () => {
       if (!userInfo) return;
 
       setLoadingStats(true);
       try {
-        const stats = await getPaymentStatistics();
+        const allInvoices = await getInvoicesByIssuer();
+
+        // Calculate statistics from invoices
+        const stats: InvoiceStatistics = {
+          totalInvoices: allInvoices.length,
+          paidInvoices: allInvoices.filter(i => i.status === InvoiceStatus.Paid).length,
+          pendingInvoices: allInvoices.filter(i => i.status === InvoiceStatus.Pending || i.status === InvoiceStatus.PartiallyPaid).length,
+          overdueInvoices: allInvoices.filter(i => i.status === InvoiceStatus.Overdue).length,
+          totalAmountKes: allInvoices.reduce((sum, i) => sum + parseFloat(i.totalAmountKes), 0),
+          paidAmountKes: allInvoices.reduce((sum, i) => sum + parseFloat(i.paidAmountKes), 0),
+          pendingAmountKes: allInvoices
+            .filter(i => i.status === InvoiceStatus.Pending || i.status === InvoiceStatus.PartiallyPaid)
+            .reduce((sum, i) => sum + parseFloat(i.balanceKes), 0),
+          overdueAmountKes: allInvoices
+            .filter(i => i.status === InvoiceStatus.Overdue)
+            .reduce((sum, i) => sum + parseFloat(i.balanceKes), 0),
+        };
+
         setStatistics(stats);
       } catch (error) {
-        console.error('Failed to load payment statistics:', error);
+        console.error('Failed to load invoice statistics:', error);
       } finally {
         setLoadingStats(false);
       }
@@ -161,26 +182,27 @@ export default function PaymentDashboardPage() {
     loadStatistics();
   }, [userInfo]);
 
-  // Load recent transactions
+  // Load recent invoices
   useEffect(() => {
-    const loadTransactions = async () => {
+    const loadInvoices = async () => {
       if (!userInfo) return;
 
-      setLoadingTransactions(true);
+      setLoadingInvoices(true);
       try {
-        const transactions = await getPaymentTransactions({
-          limit: 10,
-          offset: 0,
-        });
-        setRecentTransactions(transactions);
+        const invoices = await getInvoicesByIssuer();
+        // Sort by creation date and take first 10
+        const sorted = invoices.sort((a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        setRecentInvoices(sorted.slice(0, 10));
       } catch (error) {
-        console.error('Failed to load transactions:', error);
+        console.error('Failed to load invoices:', error);
       } finally {
-        setLoadingTransactions(false);
+        setLoadingInvoices(false);
       }
     };
 
-    loadTransactions();
+    loadInvoices();
   }, [userInfo]);
 
   // Load payment accounts
@@ -190,7 +212,7 @@ export default function PaymentDashboardPage() {
 
       setLoadingAccounts(true);
       try {
-        const accounts = await getPaymentAccounts();
+        const accounts = await getPaymentAccountsByOwner();
         setPaymentAccounts(accounts);
       } catch (error) {
         console.error('Failed to load payment accounts:', error);
@@ -248,39 +270,38 @@ export default function PaymentDashboardPage() {
         ) : statistics ? (
           <>
             <StatCard
-              title="Total Collected"
-              value={formatCurrency(statistics.totalCollected, statistics.currency)}
-              subtitle={`${statistics.transactionCount} transactions`}
+              title="Total Invoiced"
+              value={formatCurrency(statistics.totalAmountKes.toString(), 'KES')}
+              subtitle={`${statistics.totalInvoices} invoices`}
               icon={BanknotesIcon}
+              color="blue"
+            />
+            <StatCard
+              title="Paid Amount"
+              value={formatCurrency(statistics.paidAmountKes.toString(), 'KES')}
+              subtitle={`${statistics.paidInvoices} paid invoices`}
+              icon={CheckCircleIcon}
               color="green"
               trend="up"
             />
             <StatCard
               title="Pending Payments"
-              value={formatCurrency(statistics.totalPending, statistics.currency)}
-              subtitle="Awaiting confirmation"
+              value={formatCurrency(statistics.pendingAmountKes.toString(), 'KES')}
+              subtitle={`${statistics.pendingInvoices} pending`}
               icon={ClockIcon}
               color="yellow"
             />
             <StatCard
               title="Overdue Amount"
-              value={formatCurrency(statistics.totalOverdue, statistics.currency)}
-              subtitle="Requires attention"
+              value={formatCurrency(statistics.overdueAmountKes.toString(), 'KES')}
+              subtitle={`${statistics.overdueInvoices} overdue`}
               icon={ExclamationTriangleIcon}
               color="red"
-            />
-            <StatCard
-              title="Success Rate"
-              value={`${statistics.successRate.toFixed(1)}%`}
-              subtitle={`Avg: ${formatCurrency(statistics.averageTransactionAmount, statistics.currency)}`}
-              icon={CheckCircleIcon}
-              color="blue"
-              trend={statistics.successRate >= 95 ? 'up' : statistics.successRate >= 85 ? 'neutral' : 'down'}
             />
           </>
         ) : (
           <div className="col-span-4">
-            <Text className="text-center text-zinc-500">No payment statistics available</Text>
+            <Text className="text-center text-zinc-500">No invoice statistics available</Text>
           </div>
         )}
       </div>
@@ -312,20 +333,22 @@ export default function PaymentDashboardPage() {
                   <div className="flex-1">
                     <Text className="font-medium">{account.accountName}</Text>
                     <Text className="text-xs text-zinc-500 dark:text-zinc-400">
-                      {account.accountNumber}
+                      {account.paymentMethodType}
                     </Text>
                   </div>
-                  <Badge color={account.isActive ? 'green' : 'zinc'}>
-                    {account.isActive ? 'Active' : 'Inactive'}
+                  <Badge color={account.status === 'active' ? 'green' : 'zinc'}>
+                    {account.status === 'active' ? 'Active' : account.status}
                   </Badge>
                 </div>
                 <div className="mt-2">
-                  <Text className="text-lg font-semibold">
-                    {formatCurrency(account.balance, account.currency)}
-                  </Text>
-                  {account.ownerName && (
-                    <Text className="text-xs text-zinc-500 dark:text-zinc-400">
-                      {account.ownerName}
+                  {account.bankAccountNumber && (
+                    <Text className="text-sm text-zinc-600 dark:text-zinc-400">
+                      {account.bankName} - {account.bankAccountNumber}
+                    </Text>
+                  )}
+                  {account.mpesaPaybill && (
+                    <Text className="text-sm text-zinc-600 dark:text-zinc-400">
+                      M-Pesa: {account.mpesaPaybill}
                     </Text>
                   )}
                 </div>
@@ -350,14 +373,14 @@ export default function PaymentDashboardPage() {
         </div>
       </div>
 
-      {/* Recent Transactions */}
+      {/* Recent Invoices */}
       <div className="mt-8">
         <div className="flex items-center justify-between">
-          <Heading level={3}>Recent Transactions</Heading>
-          <Link href="/payments/transactions">View all →</Link>
+          <Heading level={3}>Recent Invoices</Heading>
+          <Link href="/payments/invoices">View all →</Link>
         </div>
         <div className="mt-4 overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-          {loadingTransactions ? (
+          {loadingInvoices ? (
             <div className="p-8">
               <div className="space-y-4">
                 {[...Array(5)].map((_, i) => (
@@ -368,65 +391,58 @@ export default function PaymentDashboardPage() {
                 ))}
               </div>
             </div>
-          ) : recentTransactions.length > 0 ? (
+          ) : recentInvoices.length > 0 ? (
             <table className="w-full">
               <thead className="border-b border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-800">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                    Reference
+                    Invoice #
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
+                    Title
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                     Amount
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                    Method
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
                     Status
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                    Date
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase tracking-wider text-zinc-500 dark:text-zinc-400">
-                    Payer
+                    Due Date
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                {recentTransactions.map((transaction) => (
+                {recentInvoices.map((invoice) => (
                   <tr
-                    key={transaction.id}
+                    key={invoice.id}
                     className="transition hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
                   >
                     <td className="whitespace-nowrap px-6 py-4">
                       <Link
-                        href={`/payments/transactions/${transaction.id}`}
+                        href={`/payments/invoices/${invoice.id}`}
                         className="font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
                       >
-                        {transaction.transactionReference}
+                        {invoice.invoiceNumber}
                       </Link>
+                    </td>
+                    <td className="px-6 py-4">
+                      <Text className="font-medium">{invoice.title}</Text>
+                      {invoice.description && (
+                        <Text className="text-xs text-zinc-500">{invoice.description}</Text>
+                      )}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4">
                       <Text className="font-medium">
-                        {formatCurrency(transaction.amount, transaction.currency)}
+                        {formatCurrency(invoice.totalAmountKes, 'KES')}
                       </Text>
                     </td>
                     <td className="whitespace-nowrap px-6 py-4">
-                      <Text className="text-sm">
-                        {getPaymentMethodDisplay(transaction.paymentMethod)}
-                      </Text>
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4">
-                      {getPaymentStatusBadge(transaction.status)}
+                      {getInvoiceStatusBadge(invoice.status)}
                     </td>
                     <td className="whitespace-nowrap px-6 py-4">
                       <Text className="text-sm text-zinc-500 dark:text-zinc-400">
-                        {formatDate(transaction.createdAt, 'datetime')}
-                      </Text>
-                    </td>
-                    <td className="whitespace-nowrap px-6 py-4">
-                      <Text className="text-sm">
-                        {transaction.payerName || transaction.payerPhone || '—'}
+                        {formatDate(invoice.dueDate, 'date')}
                       </Text>
                     </td>
                   </tr>
@@ -437,10 +453,10 @@ export default function PaymentDashboardPage() {
             <div className="p-8 text-center">
               <ArrowTrendingUpIcon className="mx-auto h-12 w-12 text-zinc-400" />
               <Heading level={4} className="mt-4">
-                No transactions yet
+                No invoices yet
               </Heading>
               <Text className="mt-2 text-zinc-500">
-                Transactions will appear here once payments are received
+                Invoices will appear here once you create them
               </Text>
             </div>
           )}

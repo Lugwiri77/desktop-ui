@@ -218,6 +218,14 @@ export function ApplicationLayout({ children, userInfo, onLogout, roleDisplayNam
               <SidebarSection>
                 <SidebarHeading>Educational Features</SidebarHeading>
 
+                {/* Classes - All educational institutions, administrators only */}
+                {userInfo.isAdministrator && (
+                  <SidebarItem href="/education/classes" current={pathname?.startsWith('/education/classes')}>
+                    <UserGroupIcon />
+                    <SidebarLabel>Classes</SidebarLabel>
+                  </SidebarItem>
+                )}
+
                 {/* Timetable - Primary/Secondary schools only, admin and managers can edit */}
                 {(userInfo.educationalInstitutionSubcategory === 'PrimarySchool' ||
                   userInfo.educationalInstitutionSubcategory === 'SecondarySchool' ||

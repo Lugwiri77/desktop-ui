@@ -60,9 +60,9 @@ export default function LibraryPage() {
     queryKey: ['library-books', userInfo?.organizationId, searchTerm, category, availableOnly],
     queryFn: () => searchLibraryBooks({
       institutionId: userInfo!.organizationId!,
-      searchTerm: searchTerm || undefined,
+      searchQuery: searchTerm || undefined,
       category: category || undefined,
-      availableOnly: availableOnly || undefined,
+      limit: 100, // Show up to 100 books
     }),
     enabled: !!userInfo?.organizationId && activeTab === 'browse',
   });

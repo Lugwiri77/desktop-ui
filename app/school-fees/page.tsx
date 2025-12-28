@@ -12,6 +12,7 @@ import { Link } from '@/app/components/link';
 import { isAuthenticated, logout } from '@/lib/api';
 import { loadUserInfo, isEducationInstitution, isPrimaryOrSecondarySchool, type UserInfo } from '@/lib/roles';
 import { formatCurrency } from '@/lib/formatting-utils';
+import { graphql } from '@/lib/graphql';
 import {
   AcademicCapIcon,
   DocumentTextIcon,
@@ -65,13 +66,13 @@ export default function SchoolFeesPage() {
     }
 
     setUserInfo(info);
-    loadSchoolFeeData();
+    loadSchoolFeeData(info.organizationId);
   }, [router]);
 
-  const loadSchoolFeeData = async () => {
+  const loadSchoolFeeData = async (institutionId: string) => {
     setLoading(true);
     try {
-      if (!userInfo?.institutionAccountId) {
+      if (!institutionId) {
         console.error('No institution ID found');
         return;
       }
@@ -81,64 +82,43 @@ export default function SchoolFeesPage() {
       const academicYear = `${currentYear}/${currentYear + 1}`;
       const term = 'TERM_1'; // TODO: Make this dynamic based on current date
 
-      // Fetch real data from backend
+      // Fetch real data from backend using graphql helper
       const [statsData, structuresData] = await Promise.all([
-        // Import the API functions at the top of the file
-        fetch('/api/graphql', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          },
-          body: JSON.stringify({
-            query: `
-              query GetFeeStatistics($institutionId: String!, $academicYear: String!, $term: AcademicTermEnum!) {
-                getFeeStatistics(institutionId: $institutionId, academicYear: $academicYear, term: $term) {
-                  totalCollectedKes
-                  totalPendingKes
-                  studentsWithArrears
-                }
-              }
-            `,
-            variables: {
-              institutionId: userInfo.institutionAccountId,
-              academicYear,
-              term,
-            },
-          }),
-        }).then(r => r.json()),
+        graphql<{ getFeeStatistics: any }>(`
+          query GetFeeStatistics($institutionId: String!, $academicYear: String!, $term: AcademicTermEnum!) {
+            getFeeStatistics(institutionId: $institutionId, academicYear: $academicYear, term: $term) {
+              totalCollectedKes
+              totalPendingKes
+              studentsWithArrears
+            }
+          }
+        `, {
+          institutionId: institutionId,
+          academicYear,
+          term,
+        }),
 
-        fetch('/api/graphql', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          },
-          body: JSON.stringify({
-            query: `
-              query GetFeeStructures($institutionId: String!, $isActive: Boolean) {
-                getFeeStructures(institutionId: $institutionId, isActive: $isActive) {
-                  id
-                  feeName
-                  amountKes
-                  gradeLevel
-                  term
-                  academicYear
-                  isActive
-                }
-              }
-            `,
-            variables: {
-              institutionId: userInfo.institutionAccountId,
-              isActive: true,
-            },
-          }),
-        }).then(r => r.json()),
+        graphql<{ getFeeStructures: any[] }>(`
+          query GetFeeStructures($institutionId: String!, $isActive: Boolean) {
+            getFeeStructures(institutionId: $institutionId, isActive: $isActive) {
+              id
+              feeName
+              amountKes
+              gradeLevel
+              term
+              academicYear
+              isActive
+            }
+          }
+        `, {
+          institutionId: institutionId,
+          isActive: true,
+        }),
       ]);
 
       // Process statistics
-      if (statsData?.data?.getFeeStatistics) {
-        const stats = statsData.data.getFeeStatistics;
+      if (statsData?.getFeeStatistics) {
+        const stats = statsData.getFeeStatistics;
         setStatistics({
           totalCollected: stats.totalCollectedKes || 0,
           totalPending: stats.totalPendingKes || 0,
@@ -149,8 +129,8 @@ export default function SchoolFeesPage() {
       }
 
       // Process fee structures
-      if (structuresData?.data?.getFeeStructures) {
-        const structures = structuresData.data.getFeeStructures.map((fee: any) => ({
+      if (structuresData?.getFeeStructures) {
+        const structures = structuresData.getFeeStructures.map((fee: any) => ({
           id: fee.id,
           name: fee.feeName,
           amount: parseFloat(fee.amountKes || '0'),

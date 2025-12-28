@@ -1,60 +1,19 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { isAuthenticated, logout } from '@/lib/api';
 import { loadUserInfo, isAdministrator, UserInfo } from '@/lib/roles';
 import { createLayoutUserInfo } from '@/lib/layout-utils';
 import { ApplicationLayout } from '../../components/application-layout';
 import { Heading } from '../../components/heading';
 import { Text } from '../../components/text';
-import { Badge } from '../../components/badge';
-import { Link } from '../../components/link';
-import { getPaymentTransactions, getPaymentAccounts } from '@/lib/graphql/payments/queries';
-import type {
-  PaymentTransaction,
-  PaymentStatus,
-  PaymentMethod,
-  PaymentAccount,
-} from '@/lib/graphql/payments/types';
-import { MagnifyingGlassIcon, ClipboardDocumentListIcon } from '@heroicons/react/20/solid';
-import { formatCurrency, formatDate } from '@/lib/formatting-utils';
-import {
-  getPaymentStatusColor,
-  getPaymentStatusLabel,
-  getPaymentMethodLabel,
-  type PaymentStatus as UtilPaymentStatus,
-} from '@/lib/payment-utils';
-
-function getStatusBadge(status: PaymentStatus) {
-  const utilStatus = status.toLowerCase() as UtilPaymentStatus;
-  const color = getPaymentStatusColor(utilStatus);
-  const label = getPaymentStatusLabel(utilStatus);
-  return <Badge color={color}>{label}</Badge>;
-}
-
-function getMethodDisplay(method: PaymentMethod): string {
-  // Handle additional payment methods not in utils
-  if (method === 'BANK_TRANSFER') return 'Bank Transfer';
-  if (method === 'WALLET') return 'Wallet';
-  if (method === 'AIRTEL_MONEY') return 'Airtel Money';
-  return getPaymentMethodLabel(method as any) || method;
-}
+import { Button } from '../../components/button';
+import { ExclamationCircleIcon } from '@heroicons/react/20/solid';
 
 export default function TransactionsPage() {
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const accountIdParam = searchParams?.get('accountId');
-
   const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
-  const [transactions, setTransactions] = useState<PaymentTransaction[]>([]);
-  const [filteredTransactions, setFilteredTransactions] = useState<PaymentTransaction[]>([]);
-  const [paymentAccounts, setPaymentAccounts] = useState<PaymentAccount[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<PaymentStatus | 'ALL'>('ALL');
-  const [filterMethod, setFilterMethod] = useState<PaymentMethod | 'ALL'>('ALL');
-  const [filterAccountId, setFilterAccountId] = useState<string>(accountIdParam || '');
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -73,55 +32,6 @@ export default function TransactionsPage() {
     setUserInfo(info);
   }, [router]);
 
-  useEffect(() => {
-    const loadAccounts = async () => {
-      if (!userInfo) return;
-      try {
-        const accounts = await getPaymentAccounts();
-        setPaymentAccounts(accounts);
-      } catch (error) {
-        console.error('Failed to load payment accounts:', error);
-      }
-    };
-    loadAccounts();
-  }, [userInfo]);
-
-  useEffect(() => {
-    const loadTransactions = async () => {
-      if (!userInfo) return;
-      setLoading(true);
-      try {
-        const txList = await getPaymentTransactions({
-          paymentAccountId: filterAccountId || undefined,
-          status: filterStatus !== 'ALL' ? filterStatus : undefined,
-          paymentMethod: filterMethod !== 'ALL' ? filterMethod : undefined,
-          limit: 100,
-        });
-        setTransactions(txList);
-        setFilteredTransactions(txList);
-      } catch (error) {
-        console.error('Failed to load transactions:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadTransactions();
-  }, [userInfo, filterAccountId, filterStatus, filterMethod]);
-
-  useEffect(() => {
-    let filtered = transactions;
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(
-        (tx) =>
-          tx.transactionReference.toLowerCase().includes(query) ||
-          tx.payerName?.toLowerCase().includes(query) ||
-          tx.payerPhone?.toLowerCase().includes(query)
-      );
-    }
-    setFilteredTransactions(filtered);
-  }, [transactions, searchQuery]);
-
   const handleLogout = async () => {
     try {
       await logout();
@@ -135,11 +45,6 @@ export default function TransactionsPage() {
 
   if (!userInfo) return null;
 
-  const totalAmount = filteredTransactions.reduce((sum, tx) => sum + parseFloat(tx.amount), 0);
-  const completedAmount = filteredTransactions
-    .filter((tx) => tx.status === 'COMPLETED')
-    .reduce((sum, tx) => sum + parseFloat(tx.amount), 0);
-
   return (
     <ApplicationLayout userInfo={createLayoutUserInfo(userInfo)} onLogout={handleLogout}>
       <div>
@@ -147,171 +52,24 @@ export default function TransactionsPage() {
         <Text>View all payment transactions and their status</Text>
       </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-4">
-        <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-          <Text className="text-sm text-zinc-500">Total Transactions</Text>
-          <Heading level={3} className="mt-1">
-            {filteredTransactions.length}
-          </Heading>
+      <div className="mt-12 flex flex-col items-center justify-center rounded-lg border border-dashed border-zinc-200 p-12 text-center dark:border-zinc-800">
+        <ExclamationCircleIcon className="h-16 w-16 text-zinc-400" />
+        <Heading level={2} className="mt-6">
+          Feature Not Available
+        </Heading>
+        <Text className="mt-2 max-w-lg text-zinc-500">
+          Transaction tracking is not currently available for the invoice-based payment system.
+          This feature is designed for wallet transactions, which is part of a separate system.
+          Use the Invoices page to track your payment activities.
+        </Text>
+        <div className="mt-8 flex gap-4">
+          <Button href="/payments" color="blue">
+            Back to Payments
+          </Button>
+          <Button href="/payments/invoices" outline>
+            View Invoices
+          </Button>
         </div>
-        <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-          <Text className="text-sm text-zinc-500">Total Amount</Text>
-          <Heading level={3} className="mt-1">
-            {formatCurrency(totalAmount.toString(), filteredTransactions[0]?.currency || 'KES')}
-          </Heading>
-        </div>
-        <div className="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-900 dark:bg-green-950/50">
-          <Text className="text-sm text-green-700 dark:text-green-400">Completed</Text>
-          <Heading level={3} className="mt-1 text-green-900 dark:text-green-200">
-            {formatCurrency(completedAmount.toString(), filteredTransactions[0]?.currency || 'KES')}
-          </Heading>
-        </div>
-        <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
-          <Text className="text-sm text-zinc-500">Success Rate</Text>
-          <Heading level={3} className="mt-1">
-            {filteredTransactions.length > 0
-              ? (
-                  (filteredTransactions.filter((tx) => tx.status === 'COMPLETED').length /
-                    filteredTransactions.length) *
-                  100
-                ).toFixed(1)
-              : 0}
-            %
-          </Heading>
-        </div>
-      </div>
-
-      <div className="mt-6 space-y-4">
-        <div className="flex flex-col gap-4 sm:flex-row">
-          <div className="relative flex-1 max-w-md">
-            <MagnifyingGlassIcon className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-zinc-400" />
-            <input
-              type="text"
-              placeholder="Search transactions..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-lg border border-zinc-300 bg-white py-2 pl-10 pr-4 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900"
-            />
-          </div>
-          <select
-            value={filterAccountId}
-            onChange={(e) => setFilterAccountId(e.target.value)}
-            className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900"
-          >
-            <option value="">All Accounts</option>
-            {paymentAccounts.map((account) => (
-              <option key={account.id} value={account.id}>
-                {account.accountName}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="flex gap-2 overflow-x-auto">
-          {(['ALL', 'COMPLETED', 'PENDING', 'FAILED'] as const).map((status) => (
-            <button
-              key={status}
-              onClick={() => setFilterStatus(status as PaymentStatus | 'ALL')}
-              className={`whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition ${
-                filterStatus === status
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
-              }`}
-            >
-              {status === 'ALL' ? 'All' : status.charAt(0) + status.slice(1).toLowerCase()}
-            </button>
-          ))}
-        </div>
-
-        <div className="flex gap-2 overflow-x-auto">
-          {(['ALL', 'MPESA', 'CARD', 'BANK_TRANSFER', 'CASH'] as const).map((method) => (
-            <button
-              key={method}
-              onClick={() => setFilterMethod(method as PaymentMethod | 'ALL')}
-              className={`whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition ${
-                filterMethod === method
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
-              }`}
-            >
-              {method === 'ALL' ? 'All Methods' : getMethodDisplay(method as PaymentMethod)}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="mt-6">
-        {loading ? (
-          <div className="space-y-4">
-            {[...Array(5)].map((_, i) => (
-              <div key={i} className="h-20 animate-pulse rounded-lg bg-zinc-100 dark:bg-zinc-800" />
-            ))}
-          </div>
-        ) : filteredTransactions.length > 0 ? (
-          <div className="overflow-hidden rounded-lg border border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900">
-            <table className="w-full">
-              <thead className="border-b border-zinc-200 bg-zinc-50 dark:border-zinc-800 dark:bg-zinc-800">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase text-zinc-500">
-                    Reference
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase text-zinc-500">
-                    Amount
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase text-zinc-500">
-                    Method
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase text-zinc-500">
-                    Payer
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase text-zinc-500">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium uppercase text-zinc-500">
-                    Date
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                {filteredTransactions.map((tx) => (
-                  <tr key={tx.id} className="hover:bg-zinc-50 dark:hover:bg-zinc-800/50">
-                    <td className="px-6 py-4">
-                      <Link
-                        href={`/payments/transactions/${tx.id}`}
-                        className="font-medium text-blue-600 hover:text-blue-700"
-                      >
-                        {tx.transactionReference}
-                      </Link>
-                    </td>
-                    <td className="px-6 py-4 font-semibold">
-                      {formatCurrency(tx.amount, tx.currency)}
-                    </td>
-                    <td className="px-6 py-4">
-                      <Text className="text-sm">{getMethodDisplay(tx.paymentMethod)}</Text>
-                    </td>
-                    <td className="px-6 py-4">
-                      <Text className="text-sm">
-                        {tx.payerName || tx.payerPhone || '—'}
-                      </Text>
-                    </td>
-                    <td className="px-6 py-4">{getStatusBadge(tx.status)}</td>
-                    <td className="px-6 py-4">
-                      <Text className="text-sm text-zinc-500">{formatDate(tx.createdAt, 'datetime')}</Text>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          <div className="rounded-lg border border-dashed border-zinc-200 p-12 text-center dark:border-zinc-800">
-            <ClipboardDocumentListIcon className="mx-auto h-12 w-12 text-zinc-400" />
-            <Heading level={3} className="mt-4">
-              No transactions found
-            </Heading>
-            <Text className="mt-2 text-zinc-500">Try adjusting your filters</Text>
-          </div>
-        )}
       </div>
     </ApplicationLayout>
   );

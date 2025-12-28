@@ -85,14 +85,14 @@ export default function BulkInvoicePage() {
   const loadData = async () => {
     setDataLoading(true);
     try {
-      if (!userInfo?.institutionAccountId) {
+      if (!userInfo?.organizationId) {
         console.error('No institution ID found');
         return;
       }
 
       const [gradesData, feesData] = await Promise.all([
-        getGradeLevels(userInfo.institutionAccountId),
-        getFeeStructures(userInfo.institutionAccountId, academicYear, term, true),
+        getGradeLevels(userInfo.organizationId),
+        getFeeStructures(userInfo.organizationId, academicYear, term, true),
       ]);
 
       // Map grades data
@@ -153,7 +153,7 @@ export default function BulkInvoicePage() {
   };
 
   const handleGenerate = async () => {
-    if (!userInfo?.institutionAccountId) {
+    if (!userInfo?.organizationId) {
       alert('Institution ID not found');
       return;
     }
@@ -167,7 +167,7 @@ export default function BulkInvoicePage() {
     setLoading(true);
     try {
       const input = {
-        institutionId: userInfo.institutionAccountId,
+        institutionId: userInfo.organizationId,
         feeStructureIds: selectedFees,
         academicYear,
         term,

@@ -11,27 +11,34 @@ import { Text } from '../../components/text';
 import { Badge } from '../../components/badge';
 import { Button } from '../../components/button';
 import { Link } from '../../components/link';
-import { getInvoices, getPaymentAccounts } from '@/lib/graphql/payments/queries';
-import type { Invoice, InvoiceStatus, PaymentAccount } from '@/lib/graphql/payments/types';
+import {
+  getInvoicesByIssuer,
+  getPaymentAccountsByOwner,
+  type Invoice,
+  type PaymentAccount,
+  InvoiceStatus,
+} from '@/lib/payments-api';
 import { PlusIcon, MagnifyingGlassIcon, DocumentDuplicateIcon } from '@heroicons/react/20/solid';
 import { formatCurrency, formatDate } from '@/lib/formatting-utils';
-import {
-  getInvoiceStatusColor,
-  getInvoiceStatusLabel,
-  type InvoiceStatus as UtilInvoiceStatus,
-} from '@/lib/payment-utils';
 
-function getInvoiceStatusBadge(status: InvoiceStatus, dueDate?: string) {
-  // Check if pending invoice is overdue
-  if (status === 'PENDING' && dueDate && new Date(dueDate) < new Date()) {
-    return <Badge color="red">Overdue</Badge>;
-  }
-
-  // Map GraphQL status to util status
-  const utilStatus = status.toLowerCase() as UtilInvoiceStatus;
-  const color = getInvoiceStatusColor(utilStatus);
-  const label = getInvoiceStatusLabel(utilStatus);
-  return <Badge color={color}>{label}</Badge>;
+function getInvoiceStatusBadge(status: InvoiceStatus) {
+  const colorMap: Record<InvoiceStatus, 'green' | 'yellow' | 'red' | 'zinc'> = {
+    [InvoiceStatus.Paid]: 'green',
+    [InvoiceStatus.PartiallyPaid]: 'yellow',
+    [InvoiceStatus.Pending]: 'yellow',
+    [InvoiceStatus.Overdue]: 'red',
+    [InvoiceStatus.Cancelled]: 'zinc',
+    [InvoiceStatus.Refunded]: 'zinc',
+  };
+  const labelMap: Record<InvoiceStatus, string> = {
+    [InvoiceStatus.Paid]: 'Paid',
+    [InvoiceStatus.PartiallyPaid]: 'Partially Paid',
+    [InvoiceStatus.Pending]: 'Pending',
+    [InvoiceStatus.Overdue]: 'Overdue',
+    [InvoiceStatus.Cancelled]: 'Cancelled',
+    [InvoiceStatus.Refunded]: 'Refunded',
+  };
+  return <Badge color={colorMap[status]}>{labelMap[status]}</Badge>;
 }
 
 export default function InvoicesPage() {
@@ -46,7 +53,7 @@ export default function InvoicesPage() {
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<InvoiceStatus | 'ALL'>('ALL');
-  const [filterAccountId, setFilterAccountId] = useState<string>(accountIdParam || '');
+  const [filterAccountId, setFilterAccountId] = useState<string>(accountIdParam || 'ALL');
 
   useEffect(() => {
     if (!isAuthenticated()) {
@@ -69,7 +76,7 @@ export default function InvoicesPage() {
     const loadAccounts = async () => {
       if (!userInfo) return;
       try {
-        const accounts = await getPaymentAccounts();
+        const accounts = await getPaymentAccountsByOwner();
         setPaymentAccounts(accounts);
       } catch (error) {
         console.error('Failed to load payment accounts:', error);
@@ -83,10 +90,7 @@ export default function InvoicesPage() {
       if (!userInfo) return;
       setLoading(true);
       try {
-        const invoicesList = await getInvoices({
-          paymentAccountId: filterAccountId || undefined,
-          limit: 100,
-        });
+        const invoicesList = await getInvoicesByIssuer();
         setInvoices(invoicesList);
         setFilteredInvoices(invoicesList);
       } catch (error) {
@@ -96,24 +100,28 @@ export default function InvoicesPage() {
       }
     };
     loadInvoices();
-  }, [userInfo, filterAccountId]);
+  }, [userInfo]);
 
   useEffect(() => {
     let filtered = invoices;
     if (filterStatus !== 'ALL') {
       filtered = filtered.filter((invoice) => invoice.status === filterStatus);
     }
+    if (filterAccountId && filterAccountId !== 'ALL') {
+      filtered = filtered.filter((invoice) => invoice.paymentAccountId === filterAccountId);
+    }
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(
         (invoice) =>
           invoice.invoiceNumber.toLowerCase().includes(query) ||
-          invoice.recipientName?.toLowerCase().includes(query) ||
-          invoice.description?.toLowerCase().includes(query)
+          invoice.recipientId?.toLowerCase().includes(query) ||
+          invoice.description?.toLowerCase().includes(query) ||
+          invoice.title?.toLowerCase().includes(query)
       );
     }
     setFilteredInvoices(filtered);
-  }, [invoices, searchQuery, filterStatus]);
+  }, [invoices, searchQuery, filterStatus, filterAccountId]);
 
   const handleLogout = async () => {
     try {
@@ -128,13 +136,13 @@ export default function InvoicesPage() {
 
   if (!userInfo) return null;
 
-  const totalAmount = filteredInvoices.reduce((sum, inv) => sum + parseFloat(inv.amount), 0);
+  const totalAmount = filteredInvoices.reduce((sum, inv) => sum + parseFloat(inv.totalAmountKes), 0);
   const paidAmount = filteredInvoices
-    .filter((inv) => inv.status === 'PAID')
-    .reduce((sum, inv) => sum + parseFloat(inv.amount), 0);
+    .filter((inv) => inv.status === InvoiceStatus.Paid)
+    .reduce((sum, inv) => sum + parseFloat(inv.paidAmountKes), 0);
   const pendingAmount = filteredInvoices
-    .filter((inv) => inv.status === 'PENDING' || inv.status === 'OVERDUE')
-    .reduce((sum, inv) => sum + parseFloat(inv.amount), 0);
+    .filter((inv) => inv.status === InvoiceStatus.Pending || inv.status === InvoiceStatus.Overdue || inv.status === InvoiceStatus.PartiallyPaid)
+    .reduce((sum, inv) => sum + parseFloat(inv.balanceKes), 0);
 
   return (
     <ApplicationLayout userInfo={createLayoutUserInfo(userInfo)} onLogout={handleLogout}>
@@ -153,20 +161,20 @@ export default function InvoicesPage() {
         <div className="rounded-lg border border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900">
           <Text className="text-sm text-zinc-500 dark:text-zinc-400">Total Amount</Text>
           <Heading level={3} className="mt-1">
-            {formatCurrency(totalAmount.toString(), filteredInvoices[0]?.currency || 'KES')}
+            {formatCurrency(totalAmount.toString(), 'KES')}
           </Heading>
           <Text className="text-xs text-zinc-500">{filteredInvoices.length} invoices</Text>
         </div>
         <div className="rounded-lg border border-green-200 bg-green-50 p-4 dark:border-green-900 dark:bg-green-950/50">
           <Text className="text-sm text-green-700 dark:text-green-400">Paid</Text>
           <Heading level={3} className="mt-1 text-green-900 dark:text-green-200">
-            {formatCurrency(paidAmount.toString(), filteredInvoices[0]?.currency || 'KES')}
+            {formatCurrency(paidAmount.toString(), 'KES')}
           </Heading>
         </div>
         <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 dark:border-yellow-900 dark:bg-yellow-950/50">
           <Text className="text-sm text-yellow-700 dark:text-yellow-400">Pending/Overdue</Text>
           <Heading level={3} className="mt-1 text-yellow-900 dark:text-yellow-200">
-            {formatCurrency(pendingAmount.toString(), filteredInvoices[0]?.currency || 'KES')}
+            {formatCurrency(pendingAmount.toString(), 'KES')}
           </Heading>
         </div>
       </div>
@@ -188,7 +196,7 @@ export default function InvoicesPage() {
             onChange={(e) => setFilterAccountId(e.target.value)}
             className="rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white"
           >
-            <option value="">All Accounts</option>
+            <option value="ALL">All Accounts</option>
             {paymentAccounts.map((account) => (
               <option key={account.id} value={account.id}>
                 {account.accountName}
@@ -198,17 +206,37 @@ export default function InvoicesPage() {
         </div>
 
         <div className="flex gap-2 overflow-x-auto">
-          {(['ALL', 'PENDING', 'PAID', 'OVERDUE', 'DRAFT'] as const).map((status) => (
+          <button
+            onClick={() => setFilterStatus('ALL')}
+            className={`whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition ${
+              filterStatus === 'ALL'
+                ? 'bg-blue-600 text-white'
+                : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
+            }`}
+          >
+            All
+          </button>
+          {Object.values(InvoiceStatus).map((status) => (
             <button
               key={status}
-              onClick={() => setFilterStatus(status as InvoiceStatus | 'ALL')}
+              onClick={() => setFilterStatus(status)}
               className={`whitespace-nowrap rounded-lg px-4 py-2 text-sm font-medium transition ${
                 filterStatus === status
                   ? 'bg-blue-600 text-white'
                   : 'bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-300'
               }`}
             >
-              {status === 'ALL' ? 'All' : status.charAt(0) + status.slice(1).toLowerCase()}
+              {status === InvoiceStatus.Paid
+                ? 'Paid'
+                : status === InvoiceStatus.PartiallyPaid
+                ? 'Partially Paid'
+                : status === InvoiceStatus.Pending
+                ? 'Pending'
+                : status === InvoiceStatus.Overdue
+                ? 'Overdue'
+                : status === InvoiceStatus.Cancelled
+                ? 'Cancelled'
+                : 'Refunded'}
             </button>
           ))}
         </div>
@@ -255,31 +283,29 @@ export default function InvoicesPage() {
                       </Link>
                     </td>
                     <td className="px-6 py-4">
-                      <Text className="font-medium">{invoice.recipientName || 'N/A'}</Text>
-                      {invoice.recipientEmail && (
-                        <Text className="text-xs text-zinc-500">{invoice.recipientEmail}</Text>
-                      )}
+                      <Text className="font-medium">{invoice.title}</Text>
+                      <Text className="text-xs text-zinc-500">{invoice.recipientType} - {invoice.recipientId}</Text>
                     </td>
                     <td className="px-6 py-4 font-semibold">
-                      {formatCurrency(invoice.amount, invoice.currency)}
+                      {formatCurrency(invoice.totalAmountKes, 'KES')}
                     </td>
                     <td className="px-6 py-4">
                       {invoice.dueDate ? (
                         <Text
                           className={
-                            new Date(invoice.dueDate) < new Date() && invoice.status !== 'PAID'
+                            new Date(invoice.dueDate) < new Date() && invoice.status !== InvoiceStatus.Paid
                               ? 'text-red-600'
                               : ''
                           }
                         >
-                          {formatDate(invoice.dueDate)}
+                          {formatDate(invoice.dueDate, 'date')}
                         </Text>
                       ) : (
                         '—'
                       )}
                     </td>
                     <td className="px-6 py-4">
-                      {getInvoiceStatusBadge(invoice.status, invoice.dueDate)}
+                      {getInvoiceStatusBadge(invoice.status)}
                     </td>
                   </tr>
                 ))}
