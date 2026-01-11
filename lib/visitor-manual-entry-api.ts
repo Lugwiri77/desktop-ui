@@ -26,6 +26,7 @@ export interface VisitorProfile {
   totalVisits: number;
   lastPurpose?: string;
   currentVisitorLogId?: string;
+  visitorAccountId?: string;
 }
 
 export interface VisitorLog {
@@ -111,6 +112,7 @@ export async function lookupVisitorByIdOrPhone(searchQuery: string): Promise<Vis
         totalVisits
         lastPurpose
         currentVisitorLogId
+        visitorAccountId
       }
     }
   `;
@@ -241,4 +243,43 @@ export async function checkOutVisitor(input: CheckOutVisitorInput): Promise<Visi
 
   const data = await graphql<{ checkOutVisitor: VisitorLog }>(mutation, { input });
   return data.checkOutVisitor;
+}
+
+/**
+ * Verify and update visitor ID at security gate
+ * For security staff to capture ID information during check-in
+ */
+export async function verifyVisitorIdAtGate(
+  visitorAccountId: string,
+  idNumber: string,
+  idType: string,
+  verificationNotes?: string
+): Promise<{ success: boolean; message: string }> {
+  const mutation = `
+    mutation VerifyVisitorIdAtGate($input: VerifyVisitorIdInput!) {
+      verifyVisitorIdAtGate(input: $input) {
+        success
+        message
+      }
+    }
+  `;
+
+  // Convert snake_case to SCREAMING_SNAKE_CASE for GraphQL enum
+  // national_id -> NATIONAL_ID, driver_license -> DRIVER_LICENSE, etc.
+  const toScreamingSnakeCase = (str: string) => {
+    return str.toUpperCase();
+  };
+
+  const input = {
+    visitorAccountId,
+    idNumber,
+    idType: toScreamingSnakeCase(idType),
+    verificationNotes,
+  };
+
+  const data = await graphql<{ verifyVisitorIdAtGate: { success: boolean; message: string } }>(
+    mutation,
+    { input }
+  );
+  return data.verifyVisitorIdAtGate;
 }

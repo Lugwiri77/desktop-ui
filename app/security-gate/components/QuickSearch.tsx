@@ -13,7 +13,8 @@ import {
   AlertCircle,
   LogOut,
 } from 'lucide-react';
-import { searchVisitor, scanVisitorExit } from '@/lib/security-gate';
+import { searchVisitor } from '@/lib/security-gate';
+import { checkOutVisitor } from '@/lib/visitor-manual-entry-api';
 
 interface QuickSearchProps {
   onClose?: () => void;
@@ -45,7 +46,7 @@ export default function QuickSearch({ onClose }: QuickSearchProps) {
 
   // Manual checkout mutation
   const checkoutMutation = useMutation({
-    mutationFn: (visitorLogId: string) => scanVisitorExit({ visitorLogId }),
+    mutationFn: (visitorLogId: string) => checkOutVisitor({ visitorLogId }),
     onSuccess: () => {
       // Refresh search results
       handleSearch();

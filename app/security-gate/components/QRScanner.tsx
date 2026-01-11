@@ -2,8 +2,9 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useMutation } from '@tanstack/react-query';
-import { Camera, X, Check, AlertCircle, ArrowDownToLine, ArrowUpFromLine, KeyRound } from 'lucide-react';
+import { Camera, X, Check, AlertCircle, ArrowDownToLine, ArrowUpFromLine, KeyRound, IdCard } from 'lucide-react';
 import { scanVisitorEntry, scanVisitorExit, verifyVisitorOtp, VisitorScanResult } from '@/lib/security-gate';
+import { verifyVisitorIdAtGate } from '@/lib/visitor-manual-entry-api';
 
 interface QRScannerProps {
   onScanSuccess?: () => void;
@@ -25,6 +26,12 @@ export default function QRScanner({ onScanSuccess }: QRScannerProps) {
   const [currentVisitor, setCurrentVisitor] = useState<VisitorScanResult | null>(null);
   const [otpCode, setOtpCode] = useState('');
   const otpInputRef = useRef<HTMLInputElement>(null);
+
+  // ID verification state (for visitors without ID on file)
+  const [idVerificationMode, setIdVerificationMode] = useState(false);
+  const [captureIdNumber, setCaptureIdNumber] = useState('');
+  const [captureIdType, setCaptureIdType] = useState('');
+  const idInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-focus input for barcode scanners
   useEffect(() => {
@@ -52,8 +59,22 @@ export default function QRScanner({ onScanSuccess }: QRScannerProps) {
   const entryMutation = useMutation({
     mutationFn: scanVisitorEntry,
     onSuccess: (data) => {
+      // Check if ID verification is required (visitor has no ID on file)
+      if (data.idVerificationRequired) {
+        setCurrentVisitor(data);
+        setIdVerificationMode(true);
+        setQrData('');
+        setLastScanResult({
+          success: true,
+          message: `ID Verification Required`,
+          visitorName: data.visitorFullName,
+          time: new Date().toLocaleTimeString(),
+        });
+        // Focus ID input
+        setTimeout(() => idInputRef.current?.focus(), 100);
+      }
       // Check if OTP verification is required
-      if (data.otpRequired) {
+      else if (data.otpRequired) {
         setCurrentVisitor(data);
         setOtpVerificationMode(true);
         setQrData('');
@@ -137,6 +158,45 @@ export default function QRScanner({ onScanSuccess }: QRScannerProps) {
     },
   });
 
+  // ID verification mutation (for visitors without ID on file)
+  const idVerificationMutation = useMutation({
+    mutationFn: async ({ visitorAccountId, idNumber, idType }: { visitorAccountId: string; idNumber: string; idType: string }) => {
+      return await verifyVisitorIdAtGate(
+        visitorAccountId,
+        idNumber,
+        idType,
+        'ID verified at gate during QR scan check-in by security staff'
+      );
+    },
+    onSuccess: () => {
+      setLastScanResult({
+        success: true,
+        message: 'ID Verified - Visitor check-in completed successfully',
+        visitorName: currentVisitor?.visitorFullName,
+        time: new Date().toLocaleTimeString(),
+      });
+      setIdVerificationMode(false);
+      setCurrentVisitor(null);
+      setCaptureIdNumber('');
+      setCaptureIdType('');
+      onScanSuccess?.();
+
+      // Auto-clear result after 3 seconds
+      setTimeout(() => setLastScanResult(null), 3000);
+    },
+    onError: (error: any) => {
+      setLastScanResult({
+        success: false,
+        message: error.message || 'ID verification failed',
+        time: new Date().toLocaleTimeString(),
+      });
+      // Keep in ID verification mode to retry
+
+      // Auto-clear error after 5 seconds
+      setTimeout(() => setLastScanResult(null), 5000);
+    },
+  });
+
   // Exit scan mutation
   const exitMutation = useMutation({
     mutationFn: scanVisitorExit,
@@ -171,9 +231,8 @@ export default function QRScanner({ onScanSuccess }: QRScannerProps) {
     if (scanMode === 'entry') {
       entryMutation.mutate({ qrData });
     } else {
-      // For exit, we need to find the visitor by QR code first
-      // In a real implementation, you'd extract visitor_log_id from QR data
-      exitMutation.mutate({ visitorLogId: qrData });
+      // Exit scan also uses QR code data (backend decrypts and finds active visitor)
+      exitMutation.mutate({ qrData });
     }
   };
 
@@ -195,12 +254,42 @@ export default function QRScanner({ onScanSuccess }: QRScannerProps) {
     inputRef.current?.focus();
   };
 
-  const isPending = entryMutation.isPending || exitMutation.isPending || otpVerificationMutation.isPending;
+  const handleIdSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!captureIdNumber.trim() || !captureIdType || !currentVisitor) return;
+
+    // Need visitor account ID for verification - check if available in scan result
+    if (!currentVisitor.visitorAccountId) {
+      setLastScanResult({
+        success: false,
+        message: 'Visitor account ID not available - Cannot verify ID',
+        time: new Date().toLocaleTimeString(),
+      });
+      return;
+    }
+
+    idVerificationMutation.mutate({
+      visitorAccountId: currentVisitor.visitorAccountId,
+      idNumber: captureIdNumber.trim(),
+      idType: captureIdType,
+    });
+  };
+
+  const handleCancelId = () => {
+    setIdVerificationMode(false);
+    setCurrentVisitor(null);
+    setCaptureIdNumber('');
+    setCaptureIdType('');
+    setLastScanResult(null);
+    inputRef.current?.focus();
+  };
+
+  const isPending = entryMutation.isPending || exitMutation.isPending || otpVerificationMutation.isPending || idVerificationMutation.isPending;
 
   return (
     <div className="space-y-6">
-      {/* Mode Toggle - Hide when in OTP verification mode */}
-      {!otpVerificationMode && (
+      {/* Mode Toggle - Hide when in OTP or ID verification mode */}
+      {!otpVerificationMode && !idVerificationMode && (
         <div className="flex gap-2">
           <button
             onClick={() => setScanMode('entry')}
@@ -337,6 +426,97 @@ export default function QRScanner({ onScanSuccess }: QRScannerProps) {
             </button>
           </div>
         </form>
+      ) : idVerificationMode && currentVisitor ? (
+        /* ID Verification Interface */
+        <form onSubmit={handleIdSubmit} className="space-y-4">
+          <div className="rounded-xl border-2 border-dashed border-orange-500/30 bg-orange-500/5 p-12">
+            <div className="text-center space-y-6">
+              <div className="mx-auto w-32 h-32 rounded-xl bg-gradient-to-br from-orange-500/20 to-red-500/20 flex items-center justify-center">
+                <IdCard className="h-16 w-16 text-orange-400" />
+              </div>
+
+              <div>
+                <h3 className="text-lg font-semibold text-white">
+                  ID Verification Required
+                </h3>
+                <p className="mt-1 text-sm text-zinc-400">
+                  Visitor: {currentVisitor.visitorFullName}
+                </p>
+                <p className="mt-1 text-xs text-zinc-500">
+                  Phone: {currentVisitor.visitorPhoneNumber}
+                </p>
+                <p className="mt-2 text-xs text-orange-400">
+                  Please capture visitor's ID/Passport information
+                </p>
+              </div>
+
+              {/* ID Number Input */}
+              <div className="space-y-3 text-left">
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1">
+                    ID/Passport Number <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    ref={idInputRef}
+                    type="text"
+                    value={captureIdNumber}
+                    onChange={(e) => setCaptureIdNumber(e.target.value)}
+                    className="w-full rounded-lg border border-orange-500/30 bg-white/5 px-4 py-3 text-white placeholder-zinc-500 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+                    placeholder="Enter ID number from physical document"
+                    autoFocus
+                    disabled={isPending}
+                  />
+                </div>
+
+                {/* ID Type Dropdown */}
+                <div>
+                  <label className="block text-xs text-zinc-400 mb-1">
+                    ID Type <span className="text-red-400">*</span>
+                  </label>
+                  <select
+                    value={captureIdType}
+                    onChange={(e) => setCaptureIdType(e.target.value)}
+                    className="w-full rounded-lg border border-orange-500/30 bg-white/5 px-4 py-3 text-white focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
+                    disabled={isPending}
+                  >
+                    <option value="">Select ID Type</option>
+                    <option value="national_id">National ID</option>
+                    <option value="passport">Passport</option>
+                    <option value="driver_license">Driver's License</option>
+                    <option value="alien_card">Alien Card</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+              </div>
+
+              {isPending && (
+                <div className="flex items-center justify-center gap-2 text-orange-400">
+                  <div className="h-5 w-5 animate-spin rounded-full border-2 border-orange-400 border-t-transparent" />
+                  <span className="text-sm">Verifying ID...</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ID Verification Action Buttons */}
+          <div className="flex gap-3">
+            <button
+              type="submit"
+              disabled={!captureIdNumber || !captureIdType || isPending}
+              className="flex-1 rounded-lg bg-orange-600 hover:bg-orange-700 text-white px-6 py-4 font-medium transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isPending ? 'Verifying...' : 'Verify ID & Complete Check-In'}
+            </button>
+            <button
+              type="button"
+              onClick={handleCancelId}
+              disabled={isPending}
+              className="rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 text-white px-6 py-4 font-medium transition-all disabled:opacity-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
       ) : (
         /* Scanner Interface */
         <form onSubmit={handleScan} className="space-y-4">
@@ -397,7 +577,15 @@ export default function QRScanner({ onScanSuccess }: QRScannerProps) {
       {/* Instructions */}
       <div className="rounded-lg border border-white/10 bg-white/5 p-4">
         <h4 className="text-sm font-medium text-white mb-2">Instructions:</h4>
-        {otpVerificationMode ? (
+        {idVerificationMode ? (
+          <ul className="text-sm text-zinc-400 space-y-1">
+            <li>• Check visitor's physical ID/Passport document</li>
+            <li>• Enter the exact ID number from the document</li>
+            <li>• Select the correct ID type from dropdown</li>
+            <li>• Once verified, ID will be saved for future visits</li>
+            <li>• Report any suspicious or invalid documents immediately</li>
+          </ul>
+        ) : otpVerificationMode ? (
           <ul className="text-sm text-zinc-400 space-y-1">
             <li>• Ask visitor for the OTP code sent to their phone</li>
             <li>• Enter the exact code displayed in the SMS</li>
@@ -408,6 +596,7 @@ export default function QRScanner({ onScanSuccess }: QRScannerProps) {
           <ul className="text-sm text-zinc-400 space-y-1">
             <li>• Use a barcode scanner for fastest entry</li>
             <li>• Ensure QR code is clear and well-lit</li>
+            <li>• If ID verification is required, you'll be prompted to capture it</li>
             <li>• If OTP is required, SMS will be sent automatically</li>
             <li>• Verify visitor ID document along with QR scan</li>
             <li>• Report any scanning issues immediately</li>

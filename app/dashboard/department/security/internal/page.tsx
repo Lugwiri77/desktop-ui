@@ -18,6 +18,7 @@ import {
   getUserRoleDisplayName,
   UserInfo,
 } from '@/lib/roles';
+import {createLayoutUserInfo} from "@/lib/layout-utils";
 
 export default function InternalStaffPage() {
   const router = useRouter();

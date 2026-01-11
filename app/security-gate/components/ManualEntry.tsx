@@ -12,31 +12,42 @@ import {
   ArrowUpFromLine,
   Loader2,
   Car,
+  Shield,
+  IdCard,
 } from 'lucide-react';
 import {
   lookupVisitorByIdOrPhone,
   registerWalkInVisitor,
   checkInReturningVisitor,
   checkOutVisitor,
+  verifyVisitorIdAtGate,
   type VisitorProfile,
   type VehicleInfo,
   type GateLocation,
 } from '@/lib/visitor-manual-entry-api';
+import { normalizePhoneNumber, formatPhoneForDisplay } from '@/lib/phone-utils';
 
 interface ManualEntryProps {
   onEntrySuccess?: () => void;
 }
+
+// TODO: Make this configurable based on organization/gate location
+// For now, default to Kenya as the primary deployment region
+const DEFAULT_COUNTRY_CODE = 'KE';
 
 interface VisitorData {
   id?: string;
   firstName: string;
   lastName: string;
   idNumber: string;
+  idType?: string; // NEW: ID type
   phoneNumber: string;
   email?: string;
   company?: string;
   purposeOfVisit?: string;
   personToVisit?: string;
+  visitType?: 'personal' | 'official'; // NEW: Visit type for org staff
+  visitorAccountId?: string; // NEW: Personal account ID for ID verification
   hasVehicle?: boolean;
   vehicleRegistration?: string;
   vehicleMake?: string;
@@ -52,16 +63,22 @@ export default function ManualEntry({ onEntrySuccess }: ManualEntryProps) {
   const [foundVisitor, setFoundVisitor] = useState<VisitorData | null>(null);
   const [showForm, setShowForm] = useState(false);
 
+  // NEW: ID capture state for found visitors without ID
+  const [captureIdNumber, setCaptureIdNumber] = useState('');
+  const [captureIdType, setCaptureIdType] = useState<string>('');
+
   // Form state
   const [formData, setFormData] = useState<VisitorData>({
     firstName: '',
     lastName: '',
     idNumber: '',
+    idType: 'national_id',
     phoneNumber: '',
     email: '',
     company: '',
     purposeOfVisit: '',
     personToVisit: '',
+    visitType: 'personal',
     hasVehicle: false,
     vehicleRegistration: '',
     vehicleMake: '',
@@ -83,8 +100,22 @@ export default function ManualEntry({ onEntrySuccess }: ManualEntryProps) {
     if (!lookupQuery.trim()) return;
 
     setIsLookingUp(true);
+
+    // Normalize phone number if it looks like a phone number (starts with +, 0, or is all digits)
+    let searchQuery = lookupQuery.trim();
+    if (/^[\d\s\-().\+]+$/.test(lookupQuery)) {
+      // Looks like a phone number - normalize it
+      try {
+        searchQuery = normalizePhoneNumber(lookupQuery.trim(), DEFAULT_COUNTRY_CODE);
+      } catch (error) {
+        // If normalization fails (e.g., unsupported country), use original query
+        console.warn('Phone normalization failed, using original query:', error);
+      }
+    }
+
     try {
-      const profile = await lookupVisitorByIdOrPhone(lookupQuery.trim());
+      const profile = await lookupVisitorByIdOrPhone(searchQuery);
+
 
       if (profile) {
         // Visitor found - parse name and populate data
@@ -102,7 +133,14 @@ export default function ManualEntry({ onEntrySuccess }: ManualEntryProps) {
           company: profile.visitorOrganization,
           purposeOfVisit: profile.lastPurpose,
           personToVisit: '',
+          visitType: profile.visitorOrganization ? undefined : 'personal', // If org exists, ask
+          visitorAccountId: profile.visitorAccountId, // Store visitor account ID for ID verification
         });
+
+        // Reset ID capture fields
+        setCaptureIdNumber('');
+        setCaptureIdType('');
+
         setShowForm(false);
       } else {
         // No visitor found, show new registration form
@@ -140,6 +178,30 @@ export default function ManualEntry({ onEntrySuccess }: ManualEntryProps) {
   const handleQuickProcess = async () => {
     if (!foundVisitor) return;
 
+    // Validate ID if visitor doesn't have one on file
+    if (!foundVisitor.idNumber && mode === 'entry') {
+      if (!captureIdNumber || !captureIdType) {
+        setLastResult({
+          success: false,
+          message: 'Please enter ID number and select ID type before checking in',
+          time: new Date().toLocaleTimeString(),
+        });
+        setTimeout(() => setLastResult(null), 3000);
+        return;
+      }
+    }
+
+    // Validate visit type if organization staff
+    if (foundVisitor.company && !foundVisitor.visitType && mode === 'entry') {
+      setLastResult({
+        success: false,
+        message: 'Please select visit type (Personal or Official)',
+        time: new Date().toLocaleTimeString(),
+      });
+      setTimeout(() => setLastResult(null), 3000);
+      return;
+    }
+
     try {
       if (mode === 'entry') {
         // Check in returning visitor
@@ -154,11 +216,27 @@ export default function ManualEntry({ onEntrySuccess }: ManualEntryProps) {
           : undefined;
 
         await checkInReturningVisitor({
-          visitorIdentifier: foundVisitor.idNumber || foundVisitor.phoneNumber, // Use ID number if available, otherwise phone
+          visitorIdentifier: foundVisitor.idNumber || foundVisitor.phoneNumber,
           purposeOfVisit: foundVisitor.purposeOfVisit,
           personToVisit: foundVisitor.personToVisit,
           vehicleInfo,
         });
+
+        // If visitor doesn't have ID on file and security staff captured it, verify and save it
+        if (captureIdNumber && captureIdType && foundVisitor.visitorAccountId) {
+          try {
+            await verifyVisitorIdAtGate(
+              foundVisitor.visitorAccountId,
+              captureIdNumber,
+              captureIdType,
+              `ID verified at gate during check-in by security staff`
+            );
+          } catch (idError: any) {
+            console.error('Failed to verify visitor ID:', idError);
+            // Don't fail the entire check-in if ID verification fails
+            // Just log the error and continue
+          }
+        }
       } else {
         // Check out visitor - need visitor log ID
         if (!foundVisitor.id) {
@@ -179,6 +257,8 @@ export default function ManualEntry({ onEntrySuccess }: ManualEntryProps) {
       // Reset
       setFoundVisitor(null);
       setLookupQuery('');
+      setCaptureIdNumber('');
+      setCaptureIdType('');
       onEntrySuccess?.();
 
       setTimeout(() => setLastResult(null), 3000);
@@ -219,6 +299,20 @@ export default function ManualEntry({ onEntrySuccess }: ManualEntryProps) {
       return;
     }
 
+    // Normalize phone number before submission
+    let normalizedPhone = formData.phoneNumber;
+    try {
+      normalizedPhone = normalizePhoneNumber(formData.phoneNumber, DEFAULT_COUNTRY_CODE);
+    } catch (error: any) {
+      setLastResult({
+        success: false,
+        message: `Invalid phone number: ${error.message}`,
+        time: new Date().toLocaleTimeString(),
+      });
+      setTimeout(() => setLastResult(null), 3000);
+      return;
+    }
+
     try {
       const vehicleInfo: VehicleInfo | undefined = formData.hasVehicle && formData.vehicleRegistration
         ? {
@@ -234,7 +328,7 @@ export default function ManualEntry({ onEntrySuccess }: ManualEntryProps) {
         firstName: formData.firstName,
         lastName: formData.lastName,
         idNumber: formData.idNumber,
-        phoneNumber: formData.phoneNumber,
+        phoneNumber: normalizedPhone, // Use normalized phone number
         email: formData.email,
         company: formData.company,
         purposeOfVisit: formData.purposeOfVisit,
@@ -254,11 +348,13 @@ export default function ManualEntry({ onEntrySuccess }: ManualEntryProps) {
         firstName: '',
         lastName: '',
         idNumber: '',
+        idType: 'national_id',
         phoneNumber: '',
         email: '',
         company: '',
         purposeOfVisit: '',
         personToVisit: '',
+        visitType: 'personal',
         hasVehicle: false,
         vehicleRegistration: '',
         vehicleMake: '',
@@ -442,30 +538,122 @@ export default function ManualEntry({ onEntrySuccess }: ManualEntryProps) {
 
               {/* Visitor Details Grid */}
               <div className="grid grid-cols-2 gap-3 text-left mt-4">
-                <div className="rounded-lg border border-white/10 bg-white/5 p-3">
-                  <p className="text-xs text-zinc-400">ID Number</p>
-                  <p className="text-sm text-white font-medium mt-1">{foundVisitor.idNumber}</p>
-                </div>
+                {/* ID Number - Show or Capture */}
+                {foundVisitor.idNumber ? (
+                  <div className="col-span-2 rounded-lg border border-green-500/30 bg-green-500/10 p-3">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Shield className="h-4 w-4 text-green-400" />
+                      <p className="text-xs text-green-400">ID Verified</p>
+                    </div>
+                    <p className="text-sm text-white font-medium">
+                      ****{foundVisitor.idNumber.slice(-4)}
+                    </p>
+                  </div>
+                ) : mode === 'entry' && (
+                  <div className="col-span-2 rounded-lg border border-yellow-500/30 bg-yellow-500/10 p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <IdCard className="h-4 w-4 text-yellow-400" />
+                      <p className="text-xs text-yellow-400 font-medium">ID Verification Required</p>
+                    </div>
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs text-zinc-400 mb-1">
+                          ID/Passport Number <span className="text-red-400">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          value={captureIdNumber}
+                          onChange={(e) => setCaptureIdNumber(e.target.value)}
+                          className="w-full rounded-lg border border-yellow-500/30 bg-white/5 px-3 py-2 text-white text-sm placeholder-zinc-500 focus:border-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/20"
+                          placeholder="Enter ID number from physical document"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-xs text-zinc-400 mb-1">
+                          ID Type <span className="text-red-400">*</span>
+                        </label>
+                        <select
+                          value={captureIdType}
+                          onChange={(e) => setCaptureIdType(e.target.value)}
+                          className="w-full rounded-lg border border-yellow-500/30 bg-white/5 px-3 py-2 text-white text-sm focus:border-yellow-500 focus:outline-none focus:ring-2 focus:ring-yellow-500/20"
+                        >
+                          <option value="">Select ID Type</option>
+                          <option value="national_id">National ID</option>
+                          <option value="passport">Passport</option>
+                          <option value="driver_license">Driver's License</option>
+                          <option value="alien_card">Alien Card</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="rounded-lg border border-white/10 bg-white/5 p-3">
                   <p className="text-xs text-zinc-400">Phone</p>
-                  <p className="text-sm text-white font-medium mt-1">{foundVisitor.phoneNumber}</p>
+                  <p className="text-sm text-white font-medium mt-1">
+                    {formatPhoneForDisplay(foundVisitor.phoneNumber, DEFAULT_COUNTRY_CODE, true)}
+                  </p>
                 </div>
+
                 {foundVisitor.email && (
-                  <div className="rounded-lg border border-white/10 bg-white/5 p-3 col-span-2">
+                  <div className="rounded-lg border border-white/10 bg-white/5 p-3">
                     <p className="text-xs text-zinc-400">Email</p>
                     <p className="text-sm text-white font-medium mt-1">{foundVisitor.email}</p>
                   </div>
                 )}
-                {foundVisitor.company && (
-                  <div className="rounded-lg border border-white/10 bg-white/5 p-3 col-span-2">
-                    <p className="text-xs text-zinc-400">Company</p>
-                    <p className="text-sm text-white font-medium mt-1">{foundVisitor.company}</p>
+
+                {/* Organization Staff - Visit Type Selector */}
+                {foundVisitor.company && mode === 'entry' && (
+                  <div className="col-span-2 rounded-lg border border-blue-500/30 bg-blue-500/10 p-4">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Shield className="h-4 w-4 text-blue-400" />
+                      <div>
+                        <p className="text-xs text-blue-400 font-medium">Organization Staff</p>
+                        <p className="text-xs text-zinc-400">{foundVisitor.company}</p>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-zinc-400 mb-2">
+                        Visit Type <span className="text-red-400">*</span>
+                      </label>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setFoundVisitor({ ...foundVisitor, visitType: 'official' })}
+                          className={`rounded-lg border px-3 py-2 text-sm font-medium transition-all ${
+                            foundVisitor.visitType === 'official'
+                              ? 'border-blue-500 bg-blue-500/20 text-blue-400'
+                              : 'border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10'
+                          }`}
+                        >
+                          Official
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFoundVisitor({ ...foundVisitor, visitType: 'personal' })}
+                          className={`rounded-lg border px-3 py-2 text-sm font-medium transition-all ${
+                            foundVisitor.visitType === 'personal'
+                              ? 'border-green-500 bg-green-500/20 text-green-400'
+                              : 'border-white/10 bg-white/5 text-zinc-400 hover:bg-white/10'
+                          }`}
+                        >
+                          Personal
+                        </button>
+                      </div>
+                      <p className="text-xs text-zinc-500 mt-2">
+                        {foundVisitor.visitType === 'official'
+                          ? '📋 Official: Pre-authorized visit on behalf of organization'
+                          : '🏠 Personal: Private visit, not representing organization'}
+                      </p>
+                    </div>
                   </div>
                 )}
               </div>
             </div>
           </div>
 
+          {/* Action Buttons */}
           <div className="grid grid-cols-2 gap-3">
             <button
               onClick={handleQuickProcess}
@@ -481,6 +669,8 @@ export default function ManualEntry({ onEntrySuccess }: ManualEntryProps) {
               onClick={() => {
                 setFoundVisitor(null);
                 setLookupQuery('');
+                setCaptureIdNumber('');
+                setCaptureIdType('');
               }}
               className="rounded-lg border border-white/10 bg-white/5 hover:bg-white/10 px-6 py-4 font-medium text-white transition-all"
             >
@@ -490,7 +680,7 @@ export default function ManualEntry({ onEntrySuccess }: ManualEntryProps) {
         </div>
       )}
 
-      {/* New Visitor Registration Form */}
+      {/* New Visitor Registration Form - SAME AS BEFORE (lines 493-732) */}
       {showForm && (
         <form onSubmit={handleNewVisitorSubmit} className="space-y-4">
           <div className="rounded-xl border border-white/10 bg-white/5 p-6">
@@ -504,11 +694,13 @@ export default function ManualEntry({ onEntrySuccess }: ManualEntryProps) {
                     firstName: '',
                     lastName: '',
                     idNumber: '',
+                    idType: 'national_id',
                     phoneNumber: '',
                     email: '',
                     company: '',
                     purposeOfVisit: '',
                     personToVisit: '',
+                    visitType: 'personal',
                     hasVehicle: false,
                     vehicleRegistration: '',
                     vehicleMake: '',
@@ -736,10 +928,11 @@ export default function ManualEntry({ onEntrySuccess }: ManualEntryProps) {
         <h4 className="text-sm font-medium text-white mb-2">Instructions:</h4>
         <ul className="text-sm text-zinc-400 space-y-1">
           <li>• Search by ID or phone for returning visitors</li>
+          <li>• If visitor has no ID on file, capture it during check-in</li>
+          <li>• Organization staff: Select "Official" for work visits, "Personal" for private visits</li>
           <li>• Register new visitors with complete details</li>
           <li>• Include vehicle information if visitor arrives with car</li>
-          <li>• Verify all information before check-in</li>
-          <li>• Ensure valid ID is presented</li>
+          <li>• Verify physical ID document before check-in</li>
         </ul>
       </div>
     </div>

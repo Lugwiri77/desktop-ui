@@ -128,7 +128,7 @@ export interface ScanEntryInput {
 }
 
 export interface ScanExitInput {
-  visitorLogId: string;
+  qrData: string;
   exitNotes?: string;
 }
 
@@ -136,10 +136,13 @@ export interface VisitorScanResult {
   id: string;
   visitorFullName: string;
   visitorPhoneNumber: string;
+  visitorIdNumber?: string;
+  visitorAccountId?: string;
   entryTime: string;
   status: string;
   otpVerified: boolean;
   otpRequired?: boolean;
+  idVerificationRequired?: boolean; // NEW: True if visitor has no ID on file
 }
 
 export interface VerifyOtpInput {
@@ -158,6 +161,8 @@ export async function scanVisitorEntry(input: ScanEntryInput): Promise<VisitorSc
         id
         visitorFullName
         visitorPhoneNumber
+        visitorIdNumber
+        visitorAccountId
         entryTime
         status
         otpVerified
@@ -170,7 +175,10 @@ export async function scanVisitorEntry(input: ScanEntryInput): Promise<VisitorSc
   // Determine if OTP is required by checking if visitor is verified
   // If not verified after scan, it means OTP is required
   const result = data.scanVisitorEntry;
-  result.otpRequired = !result.otpVerified && result.status === 'checked_in';
+  result.otpRequired = !result.otpVerified && result.status.toUpperCase() === 'CHECKED_IN';
+
+  // Determine if ID verification is required (visitor has no ID on file)
+  result.idVerificationRequired = !result.visitorIdNumber && result.status.toUpperCase() === 'CHECKED_IN';
 
   return result;
 }
@@ -199,8 +207,8 @@ export async function verifyVisitorOtp(input: VerifyOtpInput): Promise<boolean> 
  */
 export async function scanVisitorExit(input: ScanExitInput) {
   const mutation = `
-    mutation ScanVisitorExit($visitorLogId: String!, $exitNotes: String) {
-      scanVisitorExit(visitorLogId: $visitorLogId, exitNotes: $exitNotes) {
+    mutation ScanVisitorExit($qrData: String!, $exitNotes: String) {
+      scanVisitorExit(qrData: $qrData, exitNotes: $exitNotes) {
         id
         visitorFullName
         visitorPhoneNumber

@@ -406,10 +406,10 @@ export async function transferVisitor(input: TransferVisitorInput): Promise<Visi
 /**
  * Scan visitor exit at security gate
  */
-export async function scanVisitorExit(visitorLogId: string, exitNotes?: string): Promise<VisitorLog> {
+export async function scanVisitorExit(qrData: string, exitNotes?: string): Promise<VisitorLog> {
   const mutation = `
-    mutation ScanVisitorExit($visitorLogId: String!, $exitNotes: String) {
-      scanVisitorExit(visitorLogId: $visitorLogId, exitNotes: $exitNotes) {
+    mutation ScanVisitorExit($qrData: String!, $exitNotes: String) {
+      scanVisitorExit(qrData: $qrData, exitNotes: $exitNotes) {
         id
         status
         actualExitTime
@@ -417,7 +417,7 @@ export async function scanVisitorExit(visitorLogId: string, exitNotes?: string):
     }
   `;
 
-  const data = await graphql<{ scanVisitorExit: VisitorLog }>(mutation, { visitorLogId, exitNotes });
+  const data = await graphql<{ scanVisitorExit: VisitorLog }>(mutation, { qrData, exitNotes });
   return data.scanVisitorExit;
 }
 

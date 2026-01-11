@@ -8,7 +8,8 @@ import { Textarea } from '@/app/components/textarea';
 import { Badge } from '@/app/components/badge';
 import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/app/components/dialog';
 import { QrCodeIcon, ArrowRightStartOnRectangleIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
-import { scanVisitorEntry, scanVisitorExit, verifyVisitorOtp, getActiveVisitors, VisitorLog } from '@/lib/visitor-management';
+import { scanVisitorEntry, verifyVisitorOtp, getActiveVisitors, VisitorLog } from '@/lib/visitor-management';
+import { checkOutVisitor } from '@/lib/visitor-manual-entry-api';
 import { GranularPermissions } from '@/lib/graphql';
 
 interface SecurityGateProps {
@@ -49,7 +50,7 @@ export default function SecurityGate({ permissions }: SecurityGateProps) {
   // Exit scan mutation
   const exitMutation = useMutation({
     mutationFn: ({ visitorLogId, exitNotes }: { visitorLogId: string; exitNotes?: string }) =>
-      scanVisitorExit(visitorLogId, exitNotes),
+      checkOutVisitor({ visitorLogId, exitNotes }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['activeVisitors'] });
       queryClient.invalidateQueries({ queryKey: ['visitorStats'] });

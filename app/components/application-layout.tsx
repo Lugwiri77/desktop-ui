@@ -56,6 +56,9 @@ import {
   WalletIcon,
   DocumentDuplicateIcon,
   ClipboardDocumentListIcon,
+  HeartIcon,
+  UsersIcon as UserGroupSolidIcon,
+  HandRaisedIcon,
 } from '@heroicons/react/20/solid'
 import { useRouter, usePathname } from 'next/navigation'
 import { Logo } from './logo'
@@ -384,6 +387,31 @@ export function ApplicationLayout({ children, userInfo, onLogout, roleDisplayNam
                     <SidebarLabel>Church Giving</SidebarLabel>
                   </SidebarItem>
                 )}
+              </SidebarSection>
+            )}
+
+            {/* Groups & Chamas Submenu - for administrators and IT staff */}
+            {(userInfo.isAdministrator || userInfo.staffRole === 'ITAdministrator') && (
+              <SidebarSection>
+                <SidebarHeading>Groups & Chamas</SidebarHeading>
+
+                {/* My Groups */}
+                <SidebarItem href="/groups" current={pathname === '/groups' || pathname?.startsWith('/groups/')}>
+                  <UserGroupSolidIcon />
+                  <SidebarLabel>My Groups</SidebarLabel>
+                </SidebarItem>
+
+                {/* Fundraising Campaigns */}
+                <SidebarItem href="/campaigns" current={pathname?.startsWith('/campaigns')}>
+                  <HeartIcon />
+                  <SidebarLabel>Fundraising</SidebarLabel>
+                </SidebarItem>
+
+                {/* Discover Groups */}
+                <SidebarItem href="/groups/discover" current={pathname === '/groups/discover'}>
+                  <MagnifyingGlassIcon />
+                  <SidebarLabel>Discover Groups</SidebarLabel>
+                </SidebarItem>
               </SidebarSection>
             )}
 

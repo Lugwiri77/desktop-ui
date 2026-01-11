@@ -19,6 +19,7 @@ import {
   UserInfo,
 } from '@/lib/roles';
 import { getDepartmentExternalStaff } from '@/lib/security-department-api';
+import {createLayoutUserInfo} from "@/lib/layout-utils";
 
 interface ExternalStaffMember {
   id: string;

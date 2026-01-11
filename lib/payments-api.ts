@@ -400,11 +400,304 @@ export async function getInvoice(invoiceId: string): Promise<Invoice> {
  * Get overdue invoices issued by current user
  */
 export async function getOverdueInvoicesByIssuer(): Promise<Invoice[]> {
-  const { ownerType, ownerId } = getCurrentOwnerInfo();
+  const { ownerType, ownerId} = getCurrentOwnerInfo();
 
   const data = await graphql<{ getOverdueInvoicesByIssuer: Invoice[] }>(
     GET_OVERDUE_INVOICES_BY_ISSUER,
     { issuerType: ownerType, issuerId: ownerId }
   );
   return data.getOverdueInvoicesByIssuer || [];
+}
+
+// ============================================================================
+// WALLET TYPES
+// ============================================================================
+
+export interface WalletBalance {
+  id: string;
+  ownerType: OwnerType;
+  ownerId: string;
+  balanceKes: string;
+  availableBalanceKes: string;
+  pendingBalanceKes: string;
+  dailySpendLimitKes: string;
+  dailySpentTodayKes: string;
+  lastResetDate?: string;
+  isFrozen: boolean;
+  frozenReason?: string;
+  frozenAt?: string;
+  frozenBy?: string;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PaymentOperationResponse {
+  success: boolean;
+  message: string;
+  transactionId?: string;
+  invoiceId?: string;
+}
+
+// ============================================================================
+// WALLET QUERIES
+// ============================================================================
+
+export const GET_WALLET_BALANCE = `
+  query GetWalletBalance($ownerType: OwnerType!, $ownerId: String!) {
+    getWalletBalance(ownerType: $ownerType, ownerId: $ownerId) {
+      id
+      ownerType
+      ownerId
+      balanceKes
+      availableBalanceKes
+      pendingBalanceKes
+      dailySpendLimitKes
+      dailySpentTodayKes
+      lastResetDate
+      isFrozen
+      frozenReason
+      frozenAt
+      frozenBy
+      isActive
+      createdAt
+      updatedAt
+    }
+  }
+`;
+
+// ============================================================================
+// WALLET MUTATIONS
+// ============================================================================
+
+export const FREEZE_WALLET = `
+  mutation FreezeWallet($ownerType: OwnerType!, $ownerId: String!, $reason: String!) {
+    freezeWallet(ownerType: $ownerType, ownerId: $ownerId, reason: $reason) {
+      id
+      ownerType
+      ownerId
+      balanceKes
+      availableBalanceKes
+      isFrozen
+      frozenReason
+      frozenAt
+    }
+  }
+`;
+
+export const UNFREEZE_WALLET = `
+  mutation UnfreezeWallet($ownerType: OwnerType!, $ownerId: String!) {
+    unfreezeWallet(ownerType: $ownerType, ownerId: $ownerId) {
+      id
+      ownerType
+      ownerId
+      balanceKes
+      availableBalanceKes
+      isFrozen
+    }
+  }
+`;
+
+export const PAY_INVOICE_FROM_WALLET = `
+  mutation PayInvoiceFromWallet(
+    $payerOwnerType: OwnerType!
+    $payerOwnerId: String!
+    $invoiceId: String!
+    $amountKes: String
+  ) {
+    payInvoiceFromWallet(
+      payerOwnerType: $payerOwnerType
+      payerOwnerId: $payerOwnerId
+      invoiceId: $invoiceId
+      amountKes: $amountKes
+    ) {
+      success
+      message
+      transactionId
+      invoiceId
+    }
+  }
+`;
+
+// ============================================================================
+// WALLET API FUNCTIONS
+// ============================================================================
+
+/**
+ * Get wallet balance for current user
+ */
+export async function getWalletBalance(): Promise<WalletBalance | null> {
+  const { ownerType, ownerId } = getCurrentOwnerInfo();
+
+  try {
+    const data = await graphql<{ getWalletBalance: WalletBalance }>(
+      GET_WALLET_BALANCE,
+      { ownerType, ownerId }
+    );
+    return data.getWalletBalance;
+  } catch (error) {
+    console.error('Failed to get wallet balance:', error);
+    return null;
+  }
+}
+
+/**
+ * Freeze wallet
+ */
+export async function freezeWallet(reason: string): Promise<WalletBalance> {
+  const { ownerType, ownerId } = getCurrentOwnerInfo();
+
+  const data = await graphql<{ freezeWallet: WalletBalance }>(
+    FREEZE_WALLET,
+    { ownerType, ownerId, reason }
+  );
+  return data.freezeWallet;
+}
+
+/**
+ * Unfreeze wallet
+ */
+export async function unfreezeWallet(): Promise<WalletBalance> {
+  const { ownerType, ownerId } = getCurrentOwnerInfo();
+
+  const data = await graphql<{ unfreezeWallet: WalletBalance }>(
+    UNFREEZE_WALLET,
+    { ownerType, ownerId }
+  );
+  return data.unfreezeWallet;
+}
+
+/**
+ * Pay invoice from wallet
+ */
+export async function payInvoiceFromWallet(
+  invoiceId: string,
+  amountKes?: string
+): Promise<PaymentOperationResponse> {
+  const { ownerType, ownerId } = getCurrentOwnerInfo();
+
+  const data = await graphql<{ payInvoiceFromWallet: PaymentOperationResponse }>(
+    PAY_INVOICE_FROM_WALLET,
+    {
+      payerOwnerType: ownerType,
+      payerOwnerId: ownerId,
+      invoiceId,
+      amountKes,
+    }
+  );
+  return data.payInvoiceFromWallet;
+}
+
+// ============================================================================
+// RECONCILIATION TYPES
+// ============================================================================
+
+export interface StatementUploadResult {
+  success: boolean;
+  statementReference: string;
+  totalRows: number;
+  importedRows: number;
+  skippedRows: number;
+  errors: string[];
+}
+
+export interface ReconciliationMatchResult {
+  success: boolean;
+  totalMatches: number;
+  reconciledCount: number;
+  errors: string[];
+}
+
+// ============================================================================
+// RECONCILIATION MUTATIONS
+// ============================================================================
+
+export const UPLOAD_STATEMENT = `
+  mutation UploadStatement(
+    $ownerType: OwnerType!
+    $ownerId: String!
+    $filename: String!
+    $csvContent: String!
+  ) {
+    uploadStatement(
+      ownerType: $ownerType
+      ownerId: $ownerId
+      filename: $filename
+      csvContent: $csvContent
+    ) {
+      success
+      statementReference
+      totalRows
+      importedRows
+      skippedRows
+      errors
+    }
+  }
+`;
+
+export const AUTO_MATCH_STATEMENTS = `
+  mutation AutoMatchStatements(
+    $ownerType: OwnerType!
+    $ownerId: String!
+    $statementReference: String!
+    $minConfidence: Int
+  ) {
+    autoMatchStatements(
+      ownerType: $ownerType
+      ownerId: $ownerId
+      statementReference: $statementReference
+      minConfidence: $minConfidence
+    ) {
+      success
+      totalMatches
+      reconciledCount
+      errors
+    }
+  }
+`;
+
+// ============================================================================
+// RECONCILIATION API FUNCTIONS
+// ============================================================================
+
+/**
+ * Upload bank or M-Pesa statement CSV
+ */
+export async function uploadStatement(
+  filename: string,
+  csvContent: string
+): Promise<StatementUploadResult> {
+  const { ownerType, ownerId } = getCurrentOwnerInfo();
+
+  const data = await graphql<{ uploadStatement: StatementUploadResult }>(
+    UPLOAD_STATEMENT,
+    {
+      ownerType,
+      ownerId,
+      filename,
+      csvContent,
+    }
+  );
+  return data.uploadStatement;
+}
+
+/**
+ * Automatically match statements with transactions
+ */
+export async function autoMatchStatements(
+  statementReference: string,
+  minConfidence?: number
+): Promise<ReconciliationMatchResult> {
+  const { ownerType, ownerId } = getCurrentOwnerInfo();
+
+  const data = await graphql<{ autoMatchStatements: ReconciliationMatchResult }>(
+    AUTO_MATCH_STATEMENTS,
+    {
+      ownerType,
+      ownerId,
+      statementReference,
+      minConfidence,
+    }
+  );
+  return data.autoMatchStatements;
 }

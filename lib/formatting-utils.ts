@@ -139,31 +139,6 @@ export function calculateDaysUntil(dueDate: string | Date): number {
 }
 
 /**
- * Format phone number to international format
- * @param phone - Phone number string
- * @param countryCode - Country code (default: 254 for Kenya)
- * @returns Formatted phone number
- */
-export function formatPhoneNumber(phone: string, countryCode: string = '254'): string {
-  if (!phone) return 'N/A';
-
-  // Remove all non-digit characters
-  const cleaned = phone.replace(/\D/g, '');
-
-  // If starts with 0, replace with country code
-  if (cleaned.startsWith('0')) {
-    return `+${countryCode}${cleaned.substring(1)}`;
-  }
-
-  // If doesn't start with country code, add it
-  if (!cleaned.startsWith(countryCode)) {
-    return `+${countryCode}${cleaned}`;
-  }
-
-  return `+${cleaned}`;
-}
-
-/**
  * Format percentage
  * @param value - Decimal value (0.75 = 75%)
  * @param decimals - Number of decimal places

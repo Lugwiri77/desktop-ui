@@ -18,6 +18,7 @@ import {
 } from '@/lib/roles';
 import Link from 'next/link';
 import VisitorStatsDashboard from './components/VisitorStatsDashboard';
+import {createLayoutUserInfo} from "@/lib/layout-utils";
 
 export default function SecurityDepartmentDashboardPage() {
   const router = useRouter();

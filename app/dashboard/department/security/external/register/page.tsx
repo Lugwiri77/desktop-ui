@@ -18,6 +18,7 @@ import {
   UserInfo,
 } from '@/lib/roles';
 import { registerExternalSecurityStaff, RegisterExternalSecurityStaffInput } from '@/lib/external-security-registration-api';
+import {createLayoutUserInfo} from "@/lib/layout-utils";
 
 // Type aliases for external security staff roles
 type SecurityRole = 'SECURITY_GUARD' | 'TEAM_LEAD';
