@@ -5,6 +5,7 @@ import { Heading } from '../heading';
 import { Text } from '../text';
 import { Button } from '../button';
 import { Input } from '../input';
+import { DatePicker } from '../DatePicker';
 import { Field, Label, Description } from '../fieldset';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../table';
 import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '../dialog';
@@ -922,15 +923,14 @@ ${exampleRow2}`;
                   <option value="Other">Other</option>
                 </select>
               </Field>
-              <Field>
-                <Label>Date of Birth *</Label>
-                <Input
-                  type="date"
-                  required
-                  value={newStudent.dateOfBirth}
-                  onChange={(e) => setNewStudent({ ...newStudent, dateOfBirth: e.target.value })}
-                />
-              </Field>
+              <DatePicker
+                label="Date of Birth"
+                name="dateOfBirth"
+                required
+                value={newStudent.dateOfBirth}
+                onChange={(e) => setNewStudent({ ...newStudent, dateOfBirth: e.target.value })}
+                maxDate={new Date().toISOString().split('T')[0]}
+              />
               <Field>
                 <Label>{fieldLabels.gradeLevelLabel}</Label>
                 <Input
@@ -1131,17 +1131,16 @@ ${exampleRow2}`;
                     placeholder="Male/Female/Other"
                   />
                 </Field>
-                <Field>
-                  <Label>Date of Birth</Label>
-                  <Input
-                    type="date"
-                    value={studentToEdit?.dateOfBirth || ''}
-                    onChange={(e) =>
-                      setStudentToEdit((prev) => prev ? { ...prev, dateOfBirth: e.target.value } : null)
-                    }
-                    disabled={updating}
-                  />
-                </Field>
+                <DatePicker
+                  label="Date of Birth"
+                  name="dateOfBirth"
+                  value={studentToEdit?.dateOfBirth || ''}
+                  onChange={(e) =>
+                    setStudentToEdit((prev) => prev ? { ...prev, dateOfBirth: e.target.value } : null)
+                  }
+                  maxDate={new Date().toISOString().split('T')[0]}
+                  className={updating ? 'opacity-50 pointer-events-none' : ''}
+                />
               </div>
 
               {/* Grade Level & Class Section */}

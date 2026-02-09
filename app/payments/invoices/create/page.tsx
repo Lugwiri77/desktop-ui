@@ -18,6 +18,7 @@ import type {
 } from '@/lib/graphql/payments/types';
 import { AccountType } from '@/lib/graphql/payments/types';
 import { ArrowLeftIcon, PlusIcon, TrashIcon } from '@heroicons/react/20/solid';
+import { DatePicker } from '@/app/components/DatePicker';
 
 export default function CreateInvoicePage() {
   const router = useRouter();
@@ -278,17 +279,13 @@ export default function CreateInvoicePage() {
               </select>
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-                Due Date
-              </label>
-              <input
-                type="date"
-                value={formData.dueDate}
-                onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-                className="mt-2 block w-full rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500 dark:border-zinc-700 dark:bg-zinc-900"
-              />
-            </div>
+            <DatePicker
+              label="Due Date"
+              name="dueDate"
+              value={formData.dueDate}
+              onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+              minDate={new Date().toISOString().split('T')[0]}
+            />
 
             <div className="sm:col-span-2">
               <label className="block text-sm font-medium text-zinc-700 dark:text-zinc-300">

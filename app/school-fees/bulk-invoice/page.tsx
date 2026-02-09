@@ -21,6 +21,7 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
 } from '@heroicons/react/20/solid';
+import { DatePicker } from '@/app/components/DatePicker';
 
 interface FeeStructure {
   id: string;
@@ -454,16 +455,14 @@ export default function BulkInvoicePage() {
                 />
               </Field>
             </div>
-            <Field>
-              <Label>Due Date</Label>
-              <Input
-                type="date"
-                value={dueDate}
-                onChange={(e) => setDueDate(e.target.value)}
-                min={new Date().toISOString().split('T')[0]}
-                required
-              />
-            </Field>
+            <DatePicker
+              label="Due Date"
+              name="dueDate"
+              value={dueDate}
+              onChange={(e) => setDueDate(e.target.value)}
+              minDate={new Date().toISOString().split('T')[0]}
+              required
+            />
             <Field>
               <Label>Additional Notes (Optional)</Label>
               <textarea

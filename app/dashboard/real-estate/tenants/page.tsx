@@ -26,6 +26,7 @@ import type {
 import { Button } from '@/app/components/button';
 import { Input } from '@/app/components/input';
 import { Select } from '@/app/components/select';
+import { DatePicker } from '@/app/components/DatePicker';
 import { Dialog, DialogTitle, DialogBody, DialogActions } from '@/app/components/dialog';
 import { Field, Label } from '@/app/components/fieldset';
 import { Badge } from '@/app/components/badge';
@@ -493,15 +494,13 @@ export default function TenantsPage() {
               </div>
 
               {/* Move-In Date */}
-              <Field>
-                <Label>Move-In Date *</Label>
-                <Input
-                  type="date"
-                  value={formData.moveInDate}
-                  onChange={(e) => setFormData({ ...formData, moveInDate: e.target.value })}
-                  required
-                />
-              </Field>
+              <DatePicker
+                label="Move-In Date"
+                name="moveInDate"
+                value={formData.moveInDate}
+                onChange={(e) => setFormData({ ...formData, moveInDate: e.target.value })}
+                required
+              />
 
               {/* Visitor Settings */}
               <div className="border-t pt-4">

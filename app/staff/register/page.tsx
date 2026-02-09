@@ -8,6 +8,7 @@ import { Text } from '../../components/text';
 import { Button } from '../../components/button';
 import { Field, Label } from '../../components/fieldset';
 import { Input } from '../../components/input';
+import { DatePicker } from '../../components/DatePicker';
 import { isAuthenticated, post } from '@/lib/api';
 import {
   loadUserInfo,
@@ -234,16 +235,14 @@ export default function RegisterStaffPage() {
               </div>
 
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 mt-6">
-                <Field>
-                  <Label>Date of Birth *</Label>
-                  <Input
-                    type="date"
-                    name="date_of_birth"
-                    value={formData.date_of_birth}
-                    onChange={handleChange}
-                    required
-                  />
-                </Field>
+                <DatePicker
+                  label="Date of Birth"
+                  name="date_of_birth"
+                  value={formData.date_of_birth}
+                  onChange={handleChange}
+                  required
+                  maxDate={new Date().toISOString().split('T')[0]}
+                />
 
                 <Field>
                   <Label>Gender *</Label>
@@ -362,15 +361,13 @@ export default function RegisterStaffPage() {
                   />
                 </Field>
 
-                <Field>
-                  <Label>Employment Date</Label>
-                  <Input
-                    type="date"
-                    name="employment_date"
-                    value={formData.employment_date}
-                    onChange={handleChange}
-                  />
-                </Field>
+                <DatePicker
+                  label="Employment Date"
+                  name="employment_date"
+                  value={formData.employment_date}
+                  onChange={handleChange}
+                  maxDate={new Date().toISOString().split('T')[0]}
+                />
 
                 <Field>
                   <Label>Employment Term</Label>

@@ -12,6 +12,7 @@ import type { StudentDiaryEntry, AddDiaryEntryInput, AddDiaryAssignmentInput, Ac
 import { Button } from '@/app/components/button';
 import { Input } from '@/app/components/input';
 import { Select } from '@/app/components/select';
+import { DatePicker } from '@/app/components/DatePicker';
 import { Dialog, DialogTitle, DialogBody, DialogActions } from '@/app/components/dialog';
 import { Field, Label, FieldGroup } from '@/app/components/fieldset';
 import { Badge } from '@/app/components/badge';
@@ -34,6 +35,7 @@ export default function DiaryPage() {
   const [selectedStudentId, setSelectedStudentId] = useState('');
   const [isAddEntryDialogOpen, setIsAddEntryDialogOpen] = useState(false);
   const [selectedEntry, setSelectedEntry] = useState<StudentDiaryEntry | null>(null);
+  const [entryDate, setEntryDate] = useState(new Date().toISOString().split('T')[0]);
 
   // Primary school check
   const isPrimarySchool = userInfo?.educationalInstitutionSubcategory === 'Primary' ||
@@ -376,7 +378,7 @@ export default function DiaryPage() {
               const formData = new FormData(e.currentTarget);
               addEntryMutation.mutate({
                 studentId: selectedStudentId,
-                entryDate: formData.get('entryDate') as string,
+                entryDate: entryDate,
                 generalNotes: formData.get('generalNotes') as string || undefined,
                 behaviorNotes: formData.get('behaviorNotes') as string || undefined,
                 attendanceStatus: (formData.get('attendanceStatus') as AttendanceStatus) || undefined,
@@ -384,15 +386,14 @@ export default function DiaryPage() {
             }}
             className="space-y-4"
           >
-            <Field>
-              <Label>Date *</Label>
-              <Input
-                name="entryDate"
-                type="date"
-                defaultValue={new Date().toISOString().split('T')[0]}
-                required
-              />
-            </Field>
+            <DatePicker
+              label="Date"
+              name="entryDate"
+              value={entryDate}
+              onChange={(e) => setEntryDate(e.target.value)}
+              required
+              maxDate={new Date().toISOString().split('T')[0]}
+            />
 
             <Field>
               <Label>Attendance Status</Label>
