@@ -59,12 +59,14 @@ import {
   HeartIcon,
   UsersIcon as UserGroupSolidIcon,
   HandRaisedIcon,
+  ChatBubbleLeftRightIcon,
 } from '@heroicons/react/20/solid'
 import { useRouter, usePathname } from 'next/navigation'
 import { Logo } from './logo'
 import { SearchButton } from './search-button'
 import { Badge } from './badge'
-import { isEducationInstitution, isRealEstateBusiness, AccountType, UserInfo } from '@/lib/roles'
+import { isEducationInstitution, isRealEstateBusiness, AccountType, UserInfo, loadUserInfo } from '@/lib/roles'
+import { useSupportAccess } from '@/lib/hooks/use-support-access'
 
 interface ApplicationLayoutProps {
   children: React.ReactNode
@@ -88,6 +90,9 @@ interface ApplicationLayoutProps {
 }
 
 export function ApplicationLayout({ children, userInfo, onLogout, roleDisplayName, isAdmin }: ApplicationLayoutProps) {
+  // Decides whether the Customer Support item appears at all. The layout does not know
+  // the user's id, so this reads it from the same stored profile the pages use.
+  const supportAccess = useSupportAccess(loadUserInfo()?.userId, !!isAdmin);
   const router = useRouter()
   const pathname = usePathname()
 
@@ -196,6 +201,18 @@ export function ApplicationLayout({ children, userInfo, onLogout, roleDisplayNam
                 <UserGroupIcon />
                 <SidebarLabel>Visitor Management</SidebarLabel>
               </SidebarItem>
+
+              {/* Customer Support (§15.9).
+                  Administrators always: the desk is auto-provisioned for every
+                  organisation and someone has to be able to switch it on.
+                  Staff only once assigned — an unassigned staff member has no access to
+                  customer conversations, so the menu item would lead to a 403. */}
+              {supportAccess.isAgent && (
+                <SidebarItem href="/customer-support" current={pathname?.startsWith('/customer-support')}>
+                  <ChatBubbleLeftRightIcon />
+                  <SidebarLabel>Customer Support</SidebarLabel>
+                </SidebarItem>
+              )}
 
               {/* Student Management for Education - for administrators at educational institutions */}
               {isEducationInstitution(userInfo.accountType as AccountType, userInfo.organizationType) &&
